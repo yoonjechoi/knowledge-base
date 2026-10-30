@@ -73,7 +73,10 @@ def _day(path, prev):
             dd = due.strip()
         week.append([clean(a), dd])
     yest = [clean(x) for x in prev.get("한 일", [])] if prev else []
-    log = {k: [clean(x) for x in s[k]] for k in LOG_KEYS if s.get(k)}
+    log = {k: [clean(re.sub(r"^\[[ xX]\]\s*", "", x)) for x in s[k]
+               if not (k == "내일 이어서" and x[:3] in ("[x]", "[X]"))]   # 끝난 내일 이어서는 안 보인다
+           for k in LOG_KEYS if s.get(k)}
+    log = {k: v for k, v in log.items() if v}
     return dict(id="d-" + path.stem, date=f"{d.month}.{d.day}", dow=DOW[d.weekday()],
                 todo=todo, suggest=sug, yesterday=yest, week=week, log=log or None), s
 

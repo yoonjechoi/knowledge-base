@@ -1,6 +1,6 @@
 """업무 일지(지식베이스 journal/*.md) → 일지 화면 html 한 장.
 
-  python3 render.py            # → ~/.cache/ai-secretary/journal.html 경로와 저장된 화면 주소를 출력
+  python3 render.py            # → ~/.cache/knowledge-base/journal.html 경로와 저장된 화면 주소를 출력
 
 일지는 kb 스킬의 scripts/journal.py 가 꺼내 준다 — 지식베이스 위치와 일지 칸은 kb 만 안다.
 morning-brief/scripts/brief.py 가 이 파일의 days() · URLFILE 을 같이 쓴다.
@@ -14,7 +14,7 @@ days = J.days
 _s = importlib.util.spec_from_file_location("kbsettings", HERE.parent / "kb/scripts/settings.py")
 S = importlib.util.module_from_spec(_s); _s.loader.exec_module(S)   # 내 설정은 ~/.config/knowledge-base/
 URLFILE = S.state("page-url.txt")
-OUT = pathlib.Path.home() / ".cache/ai-secretary/journal.html"
+OUT = pathlib.Path.home() / ".cache/knowledge-base/journal.html"
 
 
 def main():
