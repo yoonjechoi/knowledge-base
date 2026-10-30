@@ -7,14 +7,24 @@ description: 내 지식베이스(기본 ~/knowledge-base, 카파시 LLM Wiki 방
 
 **지식베이스 위치:** 내 설정 `~/.config/knowledge-base/config.json` 의 `kb`(기본 `~/knowledge-base`, 처음 부를 때 없으면 기본값으로 만든다 — 옮기면 그 한 줄만). 확인: `python3 <이 스킬 폴더>/scripts/settings.py show` (원자료 `raw/` · 정리 노트 `wiki/` · 목록 `wiki/index.md` · 기록 `wiki/log.md`)
 
+> `<이 스킬 폴더>` = 이 스킬을 불렀을 때 받은 Base directory.
+> 명령의 `python3` 이 없다고 나오면(윈도우) `python` 으로, 그것도 없으면 `py -3` 으로 바꿔 친다.
+
 **어떤 작업이든 먼저 `<이 스킬 폴더>/references/rules.md` 를 읽고 따른다.** 칸 · 이름 · 링크 · 노트 모양 · 지키는 선이 다 거기 있다. 사람과 이야기할 때는 「위키」 대신 「지식베이스」.
 
 | 말 | 작업 |
 |---|---|
+| 「지식베이스 만들어 줘」 · 처음 쓸 때(지식베이스 폴더가 없을 때) | 처음 만들기 |
 | 「지식베이스에 넣어 줘」 · 「이 파일 넣어 줘」 | Ingest |
 | 「지식베이스에서 찾아 줘」 · 「예전에 ~ 어떻게 했지」 | Query |
 | 「이 결론 지식베이스에 저장해 줘」 | Save (→ `wiki/synthesis/`) |
 | 「지식베이스 점검해」 | Lint |
+
+## 처음 만들기
+
+1. `python3 <이 스킬 폴더>/scripts/init.py` — 내 설정의 위치(기본 `~/knowledge-base`, 윈도우는 `C:\Users\내이름\knowledge-base`)에 `raw/` · `wiki/` 와 칸 여덟 · `index.md` · `log.md` 를 만든다. 사람이 다른 곳을 말하면 `init.py <폴더>`(설정도 그 폴더로 바뀐다). 이미 있는 파일은 건드리지 않는다.
+2. 만든 폴더 구조를 ├── └── 그림으로 보여 주고, 「이제 『지식베이스에 넣어 줘』로 자료를 넣으면 돼요」 한 줄.
+3. 옵시디언으로 보고 싶다고 하면: 옵시디언에서 「폴더를 보관함으로 열기」로 지식베이스 폴더를 고르게 안내한다.
 
 ## Ingest — 넣기
 
@@ -48,5 +58,7 @@ description: 내 지식베이스(기본 ~/knowledge-base, 카파시 LLM Wiki 방
 4. `log.md` 에 `## [오늘] lint | 찾은 것 n개 · 고친 것 n개` → 커밋.
 
 ## 커밋
+
+지식베이스 폴더에 `.git` 이 없거나 git 이 깔려 있지 않으면 커밋은 건너뛴다(보고에 「기록 저장소 없음」 한 줄). 커밋이 「이름 · 이메일이 없다」로 실패하면 `git -c user.name=kb -c user.email=kb@localhost commit …` 로 한다.
 
 `cd <지식베이스 위치> && git add -- <바꾼 파일들> && git commit -m "<ingest|save|lint>: 한 줄"`. `git add -A` 는 쓰지 않는다(사람이 넣어 둔 raw 가 섞인다). 원격 저장소는 사람이 정한다.

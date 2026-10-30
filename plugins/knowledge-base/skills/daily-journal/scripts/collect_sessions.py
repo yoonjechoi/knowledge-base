@@ -9,7 +9,7 @@
 import argparse, datetime, importlib.util, json, os, pathlib, sys
 
 HERE = pathlib.Path(__file__).resolve().parent.parent
-CFG = json.loads((HERE / "config.json").read_text())   # 모두에게 같은 값(하루 경계 · 세션 폴더 · 뺄 폴더)
+CFG = json.loads((HERE / "config.json").read_text(encoding="utf-8"))   # 모두에게 같은 값(하루 경계 · 세션 폴더 · 뺄 폴더)
 _s = importlib.util.spec_from_file_location("kbsettings", HERE.parent / "kb/scripts/settings.py")
 S = importlib.util.module_from_spec(_s); _s.loader.exec_module(S)   # 내 설정은 ~/.config/knowledge-base/
 CUR = S.state("last-run.txt")
@@ -114,12 +114,12 @@ if __name__ == "__main__":
     if o.cmd == "commit":
         if not o.until:
             sys.exit("--until(collect 가 찍은 끝 시각)을 꼭 줘요")
-        CUR.write_text(until.isoformat(timespec="seconds"))
-        print("마지막 정리 시각:", CUR.read_text()); sys.exit()
+        CUR.write_text(until.isoformat(timespec="seconds"), encoding="utf-8")
+        print("마지막 정리 시각:", CUR.read_text(encoding="utf-8")); sys.exit()
     if o.since:
         since = parse_ts(o.since)
-    elif CUR.exists() and CUR.read_text().strip():
-        since = parse_ts(CUR.read_text().strip())
+    elif CUR.exists() and CUR.read_text(encoding="utf-8").strip():
+        since = parse_ts(CUR.read_text(encoding="utf-8").strip())
     else:
         y = (now - datetime.timedelta(days=1)).date()
         since = datetime.datetime(y.year, y.month, y.day, tzinfo=TZ)

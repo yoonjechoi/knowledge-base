@@ -47,7 +47,7 @@ def send(title, body, did):
     topic = (c.get("ntfy_topic") or "").strip()
     if not topic:
         return "휴대폰 알림은 건너뜀 — 아직 구독 이름이 없어요(ntfy-setup 스킬로 설정)"
-    url = R.URLFILE.read_text().strip() if R.URLFILE.exists() else ""
+    url = R.URLFILE.read_text(encoding="utf-8").strip() if R.URLFILE.exists() else ""
     hdr = {"Title": title.encode("utf-8").decode("latin-1"), "Priority": "high", "Tags": "sunrise"}
     if url:
         hdr["Click"] = f"{url}#{did}"

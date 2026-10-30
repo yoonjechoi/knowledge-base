@@ -22,7 +22,7 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(t.replace("/*DAYS*/[]", json.dumps(days(), ensure_ascii=False)), encoding="utf-8")
     print(OUT)
-    print("url:", URLFILE.read_text().strip() if URLFILE.exists() and URLFILE.read_text().strip() else "(없음 — 처음 올리고 ~/.config/knowledge-base/page-url.txt 에 적기)")
+    print("url:", URLFILE.read_text(encoding="utf-8").strip() if URLFILE.exists() and URLFILE.read_text(encoding="utf-8").strip() else "(없음 — 처음 올리고 ~/.config/knowledge-base/page-url.txt 에 적기)")
 
 
 if __name__ == "__main__":

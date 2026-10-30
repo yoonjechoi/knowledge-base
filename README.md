@@ -22,7 +22,7 @@ Claude Code 에서:
 
 ## 처음 한 번
 
-1. 「지식베이스에 넣어 줘」처럼 kb 를 한 번 부르면 내 설정 `~/.config/knowledge-base/config.json` 이 생겨요. 지식베이스 폴더는 기본 `~/knowledge-base` 예요. 다른 곳에 두려면 그 파일의 `kb` 한 줄만 고쳐요.
+1. 「지식베이스 만들어 줘」라고 하면 기본 `~/knowledge-base`(윈도우 `C:\Users\내이름\knowledge-base`)에 지식베이스 폴더가 생겨요. 다른 곳에 두려면 「○○ 폴더에 지식베이스 만들어 줘」. 위치는 내 설정 `~/.config/knowledge-base/config.json` 의 `kb` 한 줄이에요.
 2. 휴대폰으로 브리핑을 받으려면 「휴대폰 알림 설정해 줘」라고 하세요.
 3. 클로드 데스크톱 앱 「예약」에 두 개를 만들어요. 폴더 = 지식베이스 폴더, 권한 무시, 이 컴퓨터에서만.
    - 업무 일지 새벽 정리: `/knowledge-base:daily-journal` 매일 01:00
@@ -44,5 +44,5 @@ Claude Code 에서:
 ## 필요한 것
 
 - Claude Code (예약 작업은 클로드 데스크톱 앱)
-- python3
-- git (지식베이스 기록용)
+- 파이썬 3.9 이상 (윈도우는 `python` 또는 `py` 로 불러도 돼요)
+- git — 있으면 지식베이스 바뀐 기록이 남아요. 없어도 쓸 수 있어요

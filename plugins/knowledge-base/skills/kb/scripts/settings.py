@@ -12,6 +12,12 @@
 """
 import json, os, pathlib, sys
 
+for _o in (sys.stdout, sys.stderr):   # 윈도우 터미널에서도 한글 · ☐ 가 안 깨지게
+    try:
+        _o.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 DIR = pathlib.Path.home() / ".config" / "knowledge-base"
 CONFIG = DIR / "config.json"
 DEFAULT = {"kb": "~/knowledge-base"}
@@ -58,4 +64,4 @@ if __name__ == "__main__":
                 print(f"{k}: 없음")
         for n in ("last-run.txt", "page-url.txt"):
             p = DIR / n
-            print(f"{n}: {p.read_text().strip() if p.exists() else '없음'}")
+            print(f"{n}: {p.read_text(encoding='utf-8').strip() if p.exists() else '없음'}")
