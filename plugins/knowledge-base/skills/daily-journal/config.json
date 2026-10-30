@@ -1,0 +1,11 @@
+{
+  "day_boundary_hour": 1,
+  "session_roots": [
+    "~/.claude/projects",
+    "~/.codex/sessions"
+  ],
+  "exclude_path_parts": [
+    "/subagents/",
+    "-claude-jobs-"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "knowledge-base",
+  "description": "내 지식베이스(카파시 LLM Wiki 방식) + AI 비서(업무 일지 · 일지 화면 · 아침 브리핑) 마켓플레이스.",
+  "owner": {
+    "name": "yoonjechoi",
+    "url": "https://github.com/yoonjechoi"
+  },
+  "plugins": [
+    {
+      "name": "knowledge-base",
+      "description": "지식베이스 넣기 · 찾기 · 저장 · 점검(kb) + 업무 일지 자동 정리 · 일지 화면 · 아침 브리핑(휴대폰 알림). 사람마다 다른 값은 ~/.config/knowledge-base/ 한 곳에.",
+      "source": "./plugins/knowledge-base",
+      "category": "productivity",
+      "tags": ["knowledge-base", "llm-wiki", "journal", "briefing", "ntfy", "korean"]
+    }
+  ]
+}

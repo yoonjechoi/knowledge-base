@@ -1,0 +1,10 @@
+{
+  "name": "knowledge-base",
+  "version": "0.1.0",
+  "description": "내 지식베이스(~/knowledge-base, 카파시 LLM Wiki 방식 — raw 원자료 · wiki 정리 노트)를 다루는 kb 스킬과, 그 위에서 도는 AI 비서 — 업무 일지(daily-journal) · 일지 화면(journal-page) · 아침 브리핑(morning-brief) · 휴대폰 알림 설정(ntfy-setup).",
+  "author": {
+    "name": "yoonjechoi"
+  },
+  "keywords": ["knowledge-base", "llm-wiki", "journal", "briefing", "ntfy", "korean"],
+  "license": "MIT"
+}
