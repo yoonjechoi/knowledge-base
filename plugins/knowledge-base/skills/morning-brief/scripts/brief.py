@@ -4,8 +4,8 @@
 
 모양(바꾸려면 여기만):
   10.29 목 · 오늘 할 일 3개        ← 알림 제목
-  오늘 할 일 / ☐ 할 일 · 무슨 일
-  해 두면 좋은 일 / ＋ …
+  오늘 할 일 / ☐ 할 일 · 무슨 일 (8개까지, 넘으면 「외 n개 — 일지에서」)
+  해 두면 좋은 일 / ＋ 무엇 — 왜
   이번 주에 마칠 것 / ☐ 할 일  D-3
   어제 한 일 / ☑ … (6개까지, 넘으면 「외 n개 — 일지에서」)
   빈 칸은 통째로 뺀다.
@@ -19,6 +19,10 @@ spec = importlib.util.spec_from_file_location("render", PAGE)
 R = importlib.util.module_from_spec(spec); spec.loader.exec_module(R)
 
 
+def cut(s, n=40):
+    return s if len(s) <= n else s[:n - 1] + "…"
+
+
 def build(date):
     d = next((x for x in R.days() if x["id"] == "d-" + date), None)
     if not d:
@@ -26,14 +30,15 @@ def build(date):
     left = [t for t in d["todo"] if not t[2]]
     L = []
     if left:
-        L += ["오늘 할 일"] + [f"☐ {t[0]}" + (f" · {t[1]}" if t[1] else "") for t in left] + [""]
+        L += ["오늘 할 일"] + [f"☐ {cut(t[0])}" + (f" · {t[1]}" if t[1] else "") for t in left[:8]]
+        L += ([f"외 {len(left) - 8}개 — 일지에서"] if len(left) > 8 else []) + [""]
     if d["suggest"]:
-        L += ["해 두면 좋은 일"] + [f"＋ {a}" + (f" · {b}" if b else "") for a, b in d["suggest"]] + [""]
+        L += ["해 두면 좋은 일"] + [f"＋ {a}" + (f" — {b}" if b else "") for a, b in d["suggest"]] + [""]
     if d["week"]:
         L += ["이번 주에 마칠 것"] + [f"☐ {a}  {b}" for a, b in d["week"]] + [""]
     y = d["yesterday"]
     if y:
-        L += ["어제 한 일"] + [f"☑ {x}" for x in y[:6]] + ([f"외 {len(y) - 6}개 — 일지에서"] if len(y) > 6 else [])
+        L += ["어제 한 일"] + [f"☑ {cut(x)}" for x in y[:6]] + ([f"외 {len(y) - 6}개 — 일지에서"] if len(y) > 6 else [])
     return f"{d['date']} {d['dow']} · 오늘 할 일 {len(left)}개", "\n".join(L).strip(), d["id"]
 
 
@@ -51,11 +56,16 @@ def send(title, body, did):
     if tok:
         hdr["Authorization"] = "Bearer " + tok
     req = urllib.request.Request("https://ntfy.sh/" + topic, data=body.encode("utf-8"), headers=hdr, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=20) as r:
-            return "휴대폰으로 보냈어요" if r.status == 200 else f"알림 실패: HTTP {r.status}"
-    except Exception as e:
-        return "알림 실패: " + str(e).replace(topic, "***").replace(tok or "\0", "***")
+    why = ""
+    for _ in range(2):   # 실패하면 한 번 다시
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                if r.status == 200:
+                    return "휴대폰으로 보냈어요"
+                why = f"HTTP {r.status}"
+        except Exception as e:
+            why = str(e).replace(topic, "***").replace(tok or "\0", "***")
+    return "알림 실패: " + why
 
 
 if __name__ == "__main__":
