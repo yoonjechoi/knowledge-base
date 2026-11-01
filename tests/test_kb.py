@@ -82,7 +82,7 @@ class Docs(Base):
         self.assertNotIn("## Save", skill)
         self.assertNotIn("|save|", rules + skill + (SCRIPTS / "init.py").read_text(encoding="utf-8"))
         self.assertIn("대화나 기존 노트에서 나온 결론이면 `raw/` 에 넣지 않고 `synthesis/` 에 넣는다", rules)
-        self.assertIn("pages.py", skill)
+        self.assertNotIn("꺼내기", skill + rules)
 
 
 class Rules(Base):
@@ -199,33 +199,6 @@ class Commit(Base):
         for c in one:
             head, *files = [x for x in c.splitlines() if x]
             self.assertEqual(files, [head.split(": ")[1]])
-
-
-class Pages(Base):
-    def test_exports_cell_without_location(self):
-        self.init()
-        self.write("wiki/diary/2026-11-01.md", "하루\n")
-        self.write("wiki/diary/sub/깊은-쪽.md", "깊은\n")
-        out = self.root / "밖/꺼냄.json"
-        r = self.run_py("pages.py", "diary", "--out", out)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        pages = json.loads(out.read_text(encoding="utf-8"))
-        self.assertEqual(pages[0], {"name": "2026-11-01", "path": "wiki/diary/2026-11-01.md", "text": "하루\n"})
-        self.assertEqual(len(pages), 2)
-        self.assertNotIn(self.kb.name, out.read_text(encoding="utf-8"))
-
-    def test_refuses_unknown_cell_and_escape(self):
-        self.init()
-        for bad in ("없는칸", "..", "../raw", "topics/..", ".git"):
-            r = self.run_py("pages.py", bad)
-            self.assertEqual(r.returncode, 2, bad)
-        self.assertIn("topics", self.run_py("pages.py", "없는칸").stderr)
-
-    def test_refuses_output_inside_knowledge_base(self):
-        self.init()
-        r = self.run_py("pages.py", "topics", "--out", self.kb / "raw/꺼냄.json")
-        self.assertEqual(r.returncode, 2)
-        self.assertFalse((self.kb / "raw/꺼냄.json").exists())
 
 
 if __name__ == "__main__":
