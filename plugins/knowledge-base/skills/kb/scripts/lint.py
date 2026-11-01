@@ -3,7 +3,7 @@
 
   python3 lint.py [지식베이스 폴더] [--fix]     # 기본 = 내 설정의 kb (~/.config/knowledge-base/config.json)
 
---fix: 이름이 띄어쓰기 · 대소문자 · 유니코드 표기만 다른 끊긴 링크를 실제 쪽 이름으로 고치고, 고친 파일을 「고침: 경로」로 출력한다. 그 밖에는 아무것도 바꾸지 않는다.
+--fix: 링크를 `[[파일-이름|보일 이름]]` 모양으로 맞추고 고친 파일을 「고침: 경로」로 출력한다. 표기만 다른 끊긴 링크는 실제 쪽 이름으로 고치고 쓰던 말을 보일 이름으로 남기며, 보일 이름 없이 하이픈이 보이는 링크에는 보일 이름을 더한다. 머리말 · 코드 · log · 날짜 이름은 건드리지 않고, 그 밖에는 아무것도 바꾸지 않는다.
 """
 import argparse, importlib.util, pathlib, re, unicodedata
 
@@ -43,14 +43,41 @@ same = {}
 for n in notes:
     same.setdefault(key(n), []).append(n)
 
+def split_body(text):
+    """머리말을 떼고, 코드(`…` · ```…```)는 건드리지 않게 나눈다. 홀수 번째 조각이 코드다."""
+    head = ""
+    if text.startswith("---\n") and "\n---" in text[4:]:
+        end = text.index("\n---", 4) + 4
+        head, text = text[:end], text[end:]
+    return head, re.split(r"(```.*?```|`[^`\n]*`)", text, flags=re.S)
+
+
+def bare(name):
+    """하이픈이 화면에 그대로 보이게 될 쪽 이름인가 — 날짜 이름은 하이픈이 맞다."""
+    return "-" in name and not DATE.fullmatch(name)
+
+
+def relink(m):
+    target, _, shown = m.group(1).partition("|")
+    base, sharp, part = target.strip().partition("#")
+    real = base
+    if base and base not in notes and not (KB / base).exists() and len(same.get(key(base), [])) == 1:
+        real = same[key(base)][0]
+    if real not in notes:
+        return m.group(0)
+    if not shown and bare(real):
+        shown = base if "-" not in base else real.replace("-", " ")
+    return "[[" + real + sharp + part + ("|" + shown if shown else "") + "]]"
+
+
 if args.fix:
     for name, p in notes.items():
-        text = t = p.read_text(encoding="utf-8", errors="ignore")
-        for bad in find_links(t):
-            match = same.get(key(bad), [])
-            if bad and bad not in notes and not (KB / bad).exists() and len(match) == 1:
-                text = re.sub(r"\[\[" + re.escape(bad) + r"(?=[\]|#])", lambda _: "[[" + match[0], text)
-        if text != t:
+        if name in SPECIAL:      # log 는 덧붙이기만 한다
+            continue
+        old = p.read_text(encoding="utf-8", errors="ignore")
+        head, parts = split_body(old)
+        text = head + "".join(x if i % 2 else re.sub(r"\[\[([^\]]+)\]\]", relink, x) for i, x in enumerate(parts))
+        if text != old:
             p.write_text(text, encoding="utf-8")
             print("고침:", p.relative_to(KB).as_posix())
 
@@ -62,6 +89,13 @@ for name, ts in links.items():
     for t in ts:
         if t and t not in notes and not (KB / t).exists():
             found.append(("끊긴 링크", f"{notes[name].relative_to(KB)} → [[{t}]]"))
+for name, p in notes.items():
+    if name in SPECIAL:
+        continue
+    _, parts = split_body(p.read_text(encoding="utf-8", errors="ignore"))
+    for m in re.findall(r"\[\[([^\]|]+)\]\]", "".join(parts[::2])):
+        if m.split("#")[0].strip() in notes and bare(m.split("#")[0].strip()):
+            found.append(("보일 이름 없는 링크", f"{p.relative_to(KB)} → [[{m}]]"))
 incoming = {n: 0 for n in notes}
 for ts in links.values():
     for t in ts:

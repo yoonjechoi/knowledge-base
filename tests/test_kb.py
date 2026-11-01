@@ -226,20 +226,33 @@ class LintInbox(Base):
         self.assertIn("대기에도 노트에도 없는 raw: raw/떠돌이.md", out)
         self.assertIn("대기 줄 모양이 틀림", out)
 
-    def test_fix_links_only_when_unique(self):
+    def test_fix_keeps_spoken_word_as_shown_name(self):
         self.init()
         self.write("wiki/topics/교회-집사님.md", "본문\n")
-        self.write("wiki/topics/다른-쪽.md", "[[교회 집사님|집사님]] [[교회집사님]] [[Topic]] [[없는 쪽]] [[교회-집사님]]\n")
         self.write("wiki/topics/topic.md")
         self.write("wiki/me/topic-2.md")
+        self.write("wiki/diary/2026-11-01.md")
+        self.write("wiki/topics/다른-쪽.md", "\n".join([
+            "[[교회 집사님]]", "[[교회집사님]]", "[[교회-집사님]]", "[[교회 집사님|집사님]]", "[[교회-집사님#약속]]",
+            "[[Topic]]", "[[없는 쪽]]", "[[2026-11-01]]", "`[[교회-집사님]]`", "```", "[[교회-집사님]]", "```", ""]))
         r = self.run_py("lint.py", "--fix")
         self.assertIn("고침: wiki/topics/다른-쪽.md", r.stdout)
-        t = (self.kb / "wiki/topics/다른-쪽.md").read_text(encoding="utf-8")
-        self.assertIn("[[교회-집사님|집사님]]", t)
-        self.assertIn("[[topic]]", t)
-        self.assertEqual(t.count("[[교회-집사님"), 3)
-        self.assertIn("[[없는 쪽]]", t)
+        self.assertEqual((self.kb / "wiki/topics/다른-쪽.md").read_text(encoding="utf-8").splitlines(), [
+            "[[교회-집사님|교회 집사님]]", "[[교회-집사님|교회집사님]]", "[[교회-집사님|교회 집사님]]", "[[교회-집사님|집사님]]",
+            "[[교회-집사님#약속|교회 집사님]]", "[[topic]]", "[[없는 쪽]]", "[[2026-11-01]]",
+            "`[[교회-집사님]]`", "```", "[[교회-집사님]]", "```"])
         self.assertIn("끊긴 링크", r.stdout)
+        self.assertNotIn("보일 이름 없는 링크", r.stdout)
+
+    def test_lint_flags_shown_hyphen_but_fix_is_stable(self):
+        self.init()
+        self.write("wiki/topics/가-나.md", "x\n")
+        self.write("wiki/topics/다.md", "---\ntitle: [[가-나]]\n---\n[[가-나]]\n")
+        self.assertIn("보일 이름 없는 링크: wiki/topics/다.md → [[가-나]]", self.lint())
+        self.run_py("lint.py", "--fix")
+        t = (self.kb / "wiki/topics/다.md").read_text(encoding="utf-8")
+        self.assertEqual(t, "---\ntitle: [[가-나]]\n---\n[[가-나|가 나]]\n")
+        self.assertNotIn("고침", self.run_py("lint.py", "--fix").stdout)
 
     def test_plain_lint_changes_nothing(self):
         self.init()
