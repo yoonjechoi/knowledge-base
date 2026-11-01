@@ -2,10 +2,14 @@
 폴더 목록을 따로 갖지 않는다. wiki/ 안의 폴더는 index.md 의 `## 폴더이름` 머리와 맞으면 된다.
 
   python3 lint.py [지식베이스 폴더] [--fix]     # 기본 = 내 설정의 kb (~/.config/knowledge-base/config.json)
+  python3 lint.py --moved <노트 경로>           # 나누기 확인: 커밋 전 이 노트에서 빠진 줄이 같은 폴더의 노트에 다 있는가. 빠지면 종료 코드 1, 확인 못 하면 2
 
 --fix: 링크를 `[[파일-이름|보일 이름]]` 모양으로 맞추고 고친 파일을 「고침: 경로」로 출력한다. 표기만 다른 끊긴 링크는 실제 노트 이름으로 고치고 쓰던 말을 보일 이름으로 남기며, 보일 이름 없이 하이픈이 보이는 링크에는 보일 이름을 더한다. 머리말 · 코드 · log · 날짜 이름은 건드리지 않고, 그 밖에는 아무것도 바꾸지 않는다.
+
+대표 노트 = 하위 폴더(wiki/projects/winter-menu 같은) 안에서 index.md 항목 이름과 똑같은 노트. 60줄을 넘으면 경고만 한다. 나누기는 정리가 한다.
+머리의 `split_hold: 줄 수 이유` 가 있으면 그 줄 수보다 30줄 늘 때까지 「나누기 보류」로만 보여 준다.
 """
-import argparse, importlib.util, pathlib, re, unicodedata
+import argparse, importlib.util, pathlib, re, subprocess, sys, unicodedata
 
 _s = importlib.util.spec_from_file_location("kbsettings", pathlib.Path(__file__).resolve().parent / "settings.py")
 S = importlib.util.module_from_spec(_s); _s.loader.exec_module(S)   # 내 설정은 ~/.config/knowledge-base/
@@ -15,10 +19,13 @@ I = importlib.util.module_from_spec(_i); _i.loader.exec_module(I)   # 대기 목
 ap = argparse.ArgumentParser(description="기계 점검")
 ap.add_argument("kb", nargs="?")
 ap.add_argument("--fix", action="store_true")
+ap.add_argument("--moved")
 args = ap.parse_args()
 KB = pathlib.Path(args.kb).expanduser() if args.kb else S.kb_dir()
 W = KB / "wiki"
 SPECIAL = {"index", "log", "inbox"}
+LIMIT = 60          # 대표 노트 기준 줄 수
+GROW = 30           # 나누기 보류 뒤 이만큼 늘면 다시 시도
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")     # 날짜 이름 노트는 날짜로 찾으니 링크 · index 를 보지 않는다
 
 
@@ -70,6 +77,25 @@ def relink(m):
         shown = base if "-" not in base else real.replace("-", " ")
     return "[[" + real + sharp + part + ("|" + shown if shown else "") + "]]"
 
+
+if args.moved:
+    note = pathlib.Path(args.moved).expanduser()
+    note = note.resolve() if note.is_absolute() else (KB / note).resolve()
+    if not note.is_relative_to(KB.resolve()):
+        print("지식베이스 밖의 경로:", args.moved)
+        sys.exit(2)
+    rel = note.relative_to(KB.resolve()).as_posix()
+    r = subprocess.run(["git", "-C", str(KB), "show", "HEAD:" + rel], capture_output=True, text=True, encoding="utf-8", errors="ignore")
+    if r.returncode:
+        print("확인 못 함 — 기록 저장소에 없음:", rel)
+        sys.exit(2)
+    body = r.stdout[len(split_body(r.stdout)[0]):]
+    now = {x.strip() for p in note.parent.rglob("*.md") for x in p.read_text(encoding="utf-8", errors="ignore").splitlines()}
+    lost = [x for x in body.splitlines() if x.strip() and x.strip() not in now]
+    for x in lost:
+        print("빠진 줄:", x[:100])
+    print(f"빠진 줄 {len(lost)}개")
+    sys.exit(1 if lost else 0)
 
 if args.fix:
     for name, p in notes.items():
@@ -127,9 +153,21 @@ for n, p in notes.items():
         folders.setdefault(parts[:2], []).append(n)
     elif not indexed(n):
         found.append(("index 에 없음", str(p.relative_to(KB))))
+listed = {key(x.lstrip("- ").split(" — ")[0]) for x in index.splitlines() if " — " in x}
 for parts, ns in folders.items():
-    if not any(indexed(n) for n in ns):
+    mains = [n for n in ns if key(n) in listed]
+    if not mains:
         found.append(("index 에 대표 노트 없음", "wiki/" + "/".join(parts)))
+    for n in mains:
+        text = notes[n].read_text(encoding="utf-8", errors="ignore")
+        size = len(text.splitlines())
+        if size <= LIMIT:
+            continue
+        hold = re.search(r"^split_hold:\s*(\d+)\s*(.*)$", split_body(text)[0], re.M)
+        if hold and size < int(hold[1]) + GROW:
+            found.append(("나누기 보류", f"{notes[n].relative_to(KB)} ({size}줄) — {hold[2]}"))
+        else:
+            found.append(("긴 대표 노트", f"{notes[n].relative_to(KB)} ({size}줄)"))
 for p in W.rglob("*"):
     if " " in p.name and visible(p):
         found.append(("이름에 띄어쓰기", str(p.relative_to(KB))))

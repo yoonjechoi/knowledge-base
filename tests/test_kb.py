@@ -107,6 +107,11 @@ class Docs(Base):
         self.assertIn("**한 명(한 곳) = 노트 하나**", rules)
         self.assertIn("대표 노트", skill)
         self.assertIn("「대기 자료 일괄 정리」", skill.split("---")[1])
+        self.assertIn("대략 60줄", rules)
+        self.assertIn("split_hold", rules + skill)
+        self.assertIn("대기가 없어도 한다", skill)
+        self.assertIn("(내용은 읽지 않는다)", skill)
+        self.assertIn("한 실행에 3개까지", skill)
 
 
 class Inbox(Base):
@@ -329,6 +334,59 @@ class Lint(Base):
         with (self.kb / "wiki/index.md").open("a", encoding="utf-8") as f:
             f.write("\n겨울-메뉴 — 대표 노트\n")
         self.assertIn("찾은 것 0개", self.lint())
+
+    def main_note(self, rel, name, n, extra=""):
+        self.write(rel, f"---\ntitle: x\n{extra}---\n" + "줄\n" * (n - 3 - bool(extra)))
+        with (self.kb / "wiki/index.md").open("a", encoding="utf-8") as f:
+            f.write(f"\n{name} — 요약\n")
+
+    def test_long_main_note_warns_only_and_applies_to_brands(self):
+        self.init()
+        self.main_note("wiki/projects/a/겨울-메뉴.md", "겨울-메뉴", 61)
+        self.main_note("wiki/projects/b/딱-맞음.md", "딱-맞음", 60)
+        self.main_note("wiki/brands/c/모닝콩.md", "모닝콩", 61)
+        before = (self.kb / "wiki/projects/a/겨울-메뉴.md").read_text(encoding="utf-8")
+        out = self.run_py("lint.py", "--fix").stdout
+        self.assertIn("긴 대표 노트: wiki/projects/a/겨울-메뉴.md (61줄)", out)
+        self.assertIn("긴 대표 노트: wiki/brands/c/모닝콩.md (61줄)", out)
+        self.assertNotIn("딱-맞음.md (", out)
+        self.assertEqual((self.kb / "wiki/projects/a/겨울-메뉴.md").read_text(encoding="utf-8"), before)
+
+    def test_sub_and_flat_notes_are_not_main(self):
+        self.init()
+        self.main_note("wiki/projects/a/겨울-메뉴.md", "겨울-메뉴", 10)
+        self.write("wiki/projects/a/메뉴.md", "줄\n" * 100)      # 이름이 대표 노트 이름 안에 들어 있어도 대표가 아니다
+        self.main_note("wiki/customers/김-고객.md", "김-고객", 100)
+        self.assertNotIn("긴 대표 노트", self.lint())
+
+    def test_split_hold_stops_retry_until_note_grows(self):
+        self.init()
+        self.main_note("wiki/projects/a/겨울-메뉴.md", "겨울-메뉴", 80, "split_hold: 80 표 하나로 이어짐\n")
+        out = self.lint()
+        self.assertIn("나누기 보류: wiki/projects/a/겨울-메뉴.md (80줄) — 표 하나로 이어짐", out)
+        self.assertNotIn("긴 대표 노트", out)
+        p = self.kb / "wiki/projects/a/겨울-메뉴.md"
+        p.write_text(p.read_text(encoding="utf-8") + "줄\n" * 30, encoding="utf-8")
+        self.assertIn("긴 대표 노트", self.lint())
+
+    def test_moved_finds_lost_lines(self):
+        self.init()
+        self.write("wiki/projects/a/겨울-메뉴.md", "---\ntitle: x\nupdated: 1\n---\n# 겨울\n## 회의\n첫 줄\n둘째 줄\n")
+        self.git("add", "-A")
+        self.git("-c", "user.name=a", "-c", "user.email=a@a", "commit", "-qm", "x")
+        self.write("wiki/projects/a/겨울-메뉴.md", "---\ntitle: x\nupdated: 2\n---\n# 겨울\n[[겨울-메뉴-회의|회의]] — 요약\n")
+        self.write("wiki/projects/a/겨울-메뉴-회의.md", "## 회의\n첫 줄\n")
+        r = self.run_py("lint.py", "--moved", "wiki/projects/a/겨울-메뉴.md")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("빠진 줄: 둘째 줄", r.stdout)
+        self.write("wiki/projects/a/겨울-메뉴-회의.md", "## 회의\n첫 줄\n둘째 줄\n")
+        self.assertEqual(self.run_py("lint.py", "--moved", "wiki/projects/a/겨울-메뉴.md").returncode, 0)
+        self.assertEqual(self.run_py("lint.py", "--moved", self.kb / "wiki/projects/a/겨울-메뉴.md").returncode, 0)
+        self.assertEqual(self.run_py("lint.py", "--moved", "wiki/없는-노트.md").returncode, 2)
+        self.assertEqual(self.run_py("lint.py", "--moved", self.root / "밖.md").returncode, 2)
+        self.write("wiki/projects/a/겨울-메뉴-회의.md", "## 회의\n첫 줄\n")
+        self.write("wiki/topics/다른-폴더.md", "둘째 줄\n")      # 다른 폴더에 같은 줄이 있어도 빠진 것이다
+        self.assertEqual(self.run_py("lint.py", "--moved", "wiki/projects/a/겨울-메뉴.md").returncode, 1)
 
     def test_customer_note_still_needs_index(self):
         self.init()
