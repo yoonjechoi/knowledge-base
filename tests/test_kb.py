@@ -57,6 +57,7 @@ class Init(Base):
         self.assertIn("## me (나)", (self.kb / "wiki/index.md").read_text(encoding="utf-8"))
         self.assertIn("## synthesis (대화에서 얻은 결론)", (self.kb / "wiki/index.md").read_text(encoding="utf-8"))
         self.assertIn("rules.md", self.git("ls-files"))
+        self.assertIn("wiki/inbox.md", self.git("ls-files"))
         self.assertIn("찾은 것 0개", self.lint())
 
     def test_keeps_my_rules_and_uses_their_cells(self):
@@ -83,6 +84,169 @@ class Docs(Base):
         self.assertNotIn("|save|", rules + skill + (SCRIPTS / "init.py").read_text(encoding="utf-8"))
         self.assertIn("대화나 기존 노트에서 나온 결론이면 `raw/` 에 넣지 않고 `synthesis/` 에 넣는다", rules)
         self.assertNotIn("꺼내기", skill + rules)
+        self.assertIn("「이 결론 저장해 줘」", skill.split("---")[1])
+        self.assertIn("「바로 정리해 줘」", skill.split("---")[1])
+        self.assertIn("정리 전 자료", skill)
+
+
+class Inbox(Base):
+    def inbox(self, *a, stdin=None):
+        return subprocess.run([sys.executable, str(SCRIPTS / "inbox.py"), *map(str, a)], env=self.env(), input=stdin,
+                              capture_output=True, text=True, encoding="utf-8")
+
+    def waiting(self):
+        return [ln for ln in (self.kb / "wiki/inbox.md").read_text(encoding="utf-8").splitlines() if ln.startswith("- raw/")]
+
+    def receive(self, name, topic="주제"):
+        src = self.root / "받은곳" / name
+        src.parent.mkdir(exist_ok=True)
+        src.write_bytes(b"data")
+        r = self.inbox("add", "--file", src, "--topic", topic, "--facts", "핵심", "--source", "시험")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r
+
+    def test_receive_commits_only_raw_and_inbox(self):
+        self.init()
+        self.write("wiki/topics/손대는-중.md")
+        r = self.receive("회의 메모.pdf", "회의 | 정산")
+        self.assertIn("받음 raw/회의-메모.pdf", r.stdout)
+        self.assertTrue((self.kb / "raw/회의-메모.pdf").is_file())
+        shown = self.git("-c", "core.quotePath=false", "show", "--name-only", "--format=", "HEAD").split()
+        self.assertEqual(sorted(shown), ["raw/회의-메모.pdf", "wiki/inbox.md"])
+        self.assertEqual(self.waiting()[0].split(" | ")[3], "회의 / 정산")
+
+    def test_stdin_text_keeps_source_line_and_images_go_to_assets(self):
+        self.init()
+        r = self.inbox("add", "--stdin", "--title", "문자 안내", "--topic", "치과", "--facts", "11월 5일", "--source", "문자", stdin="본문")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        p = next((self.kb / "raw").glob("*문자-안내.md"))
+        self.assertTrue(p.read_text(encoding="utf-8").startswith("> 출처: 문자"))
+        self.receive("영수증.PNG")
+        self.assertTrue((self.kb / "raw/assets/영수증.png").is_file())
+
+    def test_existing_raw_and_bad_input(self):
+        self.init()
+        self.write("raw/있던것.md")
+        self.assertEqual(self.inbox("add", "--raw", "raw/있던것.md", "--topic", "t", "--facts", "f").returncode, 0)
+        self.assertEqual(self.inbox("add", "--raw", "raw/있던것.md", "--topic", "t", "--facts", "f").returncode, 2)
+        self.assertEqual(self.inbox("add", "--raw", "wiki/log.md", "--topic", "t", "--facts", "f").returncode, 2)
+        self.assertEqual(self.inbox("add", "--file", self.root / "없음", "--topic", "t", "--facts", "f").returncode, 2)
+        self.assertEqual(len(self.waiting()), 1)
+
+    def test_parallel_receive_same_name_keeps_everything(self):
+        self.init()
+        src = self.root / "같은이름.md"
+        src.write_text("x", encoding="utf-8")
+        with concurrent.futures.ThreadPoolExecutor(12) as ex:
+            res = list(ex.map(lambda i: self.inbox("add", "--file", src, "--topic", f"주제{i}", "--facts", "f"), range(12)))
+        self.assertEqual([r.returncode for r in res], [0] * 12, [r.stderr for r in res])
+        self.assertEqual(len(self.waiting()), 12)
+        self.assertEqual(len(list((self.kb / "raw").glob("같은이름*.md"))), 12)
+        self.assertEqual({ln.split(" | ")[0] for ln in self.waiting()}.__len__(), 12)
+        self.assertEqual(self.git("status", "--short"), "")
+
+    def test_receive_while_commit_and_tidy_done(self):
+        self.init()
+        for i in range(6):
+            self.receive(f"자료{i}.md")
+        self.inbox("begin")
+        with concurrent.futures.ThreadPoolExecutor(8) as ex:
+            a = [ex.submit(self.receive, f"새것{i}.md") for i in range(4)]
+            b = [ex.submit(self.inbox, "done", "-m", "ingest: 시험", f"raw/자료{i}.md") for i in range(4)]
+            [f.result() for f in a]
+            self.assertEqual([f.result().returncode for f in b], [0] * 4)
+        self.assertEqual(len(self.waiting()), 6)
+        self.assertEqual(self.git("status", "--short"), "")
+
+    def test_no_history_repo(self):
+        self.write("wiki/index.md", "")
+        r = self.receive("자료.md")
+        self.assertIn("기록 저장소 없음", r.stdout)
+        self.assertEqual(len(self.waiting()), 1)
+
+    def test_tidy_loop_removes_with_wiki_files_in_one_commit(self):
+        self.init()
+        self.receive("가.md")
+        self.receive("나.md")
+        self.assertEqual(self.inbox("begin").returncode, 0)
+        self.assertTrue(self.inbox("next").stdout.startswith("raw/가.md"))
+        self.write("wiki/topics/가-쪽.md")
+        r = self.inbox("done", "-m", "ingest: 가", "raw/가.md", "wiki/topics/가-쪽.md")
+        self.assertIn("대기 1개", r.stdout)
+        shown = self.git("-c", "core.quotePath=false", "show", "--name-only", "--format=", "HEAD").split()
+        self.assertEqual(sorted(shown), ["wiki/inbox.md", "wiki/topics/가-쪽.md"])
+        self.assertTrue(self.inbox("next").stdout.startswith("raw/나.md"))
+        self.assertEqual(self.inbox("done", "-m", "x", "raw/없음.md").returncode, 2)
+        self.inbox("end")
+        self.assertFalse((self.kb / ".git/kb-tidy.lock").exists())
+
+    def test_only_one_tidy_and_stopped_tidy_resumes(self):
+        self.init()
+        for n in ("가.md", "나.md", "다.md"):
+            self.receive(n)
+        self.inbox("begin")
+        self.inbox("done", "-m", "ingest: 가", "raw/가.md")
+        # 여기서 멈췄다 — end 없음
+        self.assertEqual(self.inbox("begin").returncode, 3)
+        lease = self.kb / ".git/kb-tidy.lock"
+        os.utime(lease, (1, 1))
+        self.assertEqual(self.inbox("begin").returncode, 0)
+        self.assertTrue(self.inbox("next").stdout.startswith("raw/나.md"))
+        self.assertEqual(len(self.waiting()), 2)
+
+    def test_hold_is_skipped_stays_and_is_retried(self):
+        self.init()
+        self.receive("깨진.pdf")
+        self.receive("멀쩡.md")
+        self.inbox("begin")
+        self.assertEqual(self.inbox("hold", "raw/깨진.pdf", "열리지 않음").returncode, 0)
+        self.assertTrue(self.inbox("next").stdout.startswith("raw/멀쩡.md"))
+        self.inbox("done", "-m", "ingest: x", "raw/멀쩡.md")
+        self.assertEqual(self.inbox("next").stdout.strip(), "대기 없음")
+        self.assertIn("보류 1개", self.inbox("end").stdout)
+        self.assertIn("대기 보류", self.lint())
+        self.inbox("begin")
+        self.assertTrue(self.inbox("next").stdout.startswith("raw/깨진.pdf"))
+        self.assertNotIn("보류", self.waiting()[0])
+
+
+class LintInbox(Base):
+    def test_mismatch_between_inbox_and_raw(self):
+        self.init()
+        src = self.root / "자료.md"
+        src.write_text("x", encoding="utf-8")
+        subprocess.run([sys.executable, str(SCRIPTS / "inbox.py"), "add", "--file", str(src), "--topic", "t", "--facts", "f"], env=self.env())
+        self.assertIn("찾은 것 0개", self.lint())
+        (self.kb / "raw/자료.md").unlink()
+        self.write("raw/떠돌이.md")
+        with (self.kb / "wiki/inbox.md").open("a", encoding="utf-8") as f:
+            f.write("- 망가진 줄\n")
+        out = self.lint()
+        self.assertIn("대기에 있는데 raw 없음: raw/자료.md", out)
+        self.assertIn("대기에도 노트에도 없는 raw: raw/떠돌이.md", out)
+        self.assertIn("대기 줄 모양이 틀림", out)
+
+    def test_fix_links_only_when_unique(self):
+        self.init()
+        self.write("wiki/topics/교회-집사님.md", "본문\n")
+        self.write("wiki/topics/다른-쪽.md", "[[교회 집사님|집사님]] [[교회집사님]] [[Topic]] [[없는 쪽]] [[교회-집사님]]\n")
+        self.write("wiki/topics/topic.md")
+        self.write("wiki/me/topic-2.md")
+        r = self.run_py("lint.py", "--fix")
+        self.assertIn("고침: wiki/topics/다른-쪽.md", r.stdout)
+        t = (self.kb / "wiki/topics/다른-쪽.md").read_text(encoding="utf-8")
+        self.assertIn("[[교회-집사님|집사님]]", t)
+        self.assertIn("[[topic]]", t)
+        self.assertEqual(t.count("[[교회-집사님"), 3)
+        self.assertIn("[[없는 쪽]]", t)
+        self.assertIn("끊긴 링크", r.stdout)
+
+    def test_plain_lint_changes_nothing(self):
+        self.init()
+        self.write("wiki/topics/가-나.md", "x\n")
+        self.write("wiki/topics/다.md", "[[가 나]]\n")
+        self.lint()
+        self.assertIn("[[가 나]]", (self.kb / "wiki/topics/다.md").read_text(encoding="utf-8"))
 
 
 class Rules(Base):

@@ -4,7 +4,7 @@
 
 - 파일을 하나씩 적는다. 폴더 · 지식베이스 밖 경로는 받지 않는다.
 - `git commit --only` 로 적은 파일만 넣는다. 다른 세션이 스테이징해 둔 파일은 그대로 남는다.
-- 지식베이스 안의 lock 은 이 프로그램만 다룬다. 다른 프로그램이 lock 을 직접 잡지 않는다.
+- lock 은 이 프로그램과 inbox.py 만 다룬다. 다른 프로그램이 lock 을 직접 잡지 않는다.
 - 기록 저장소(.git) 나 git 이 없으면 건너뛰고 성공으로 끝낸다. 이름 · 이메일이 없으면 kb 이름으로 커밋한다.
 
 마지막 줄: `커밋 <해시>` · `바뀐 것 없음` · `기록 저장소 없음` 중 하나. 실패하면 종료 코드 1, 경로가 틀리면 2.
@@ -41,9 +41,18 @@ def relative(kb, name):
     return rel.as_posix()
 
 
+def has_repo(kb):
+    return bool(shutil.which("git")) and (kb / ".git").exists()
+
+
+def lock_dir(kb):
+    """lock 을 두는 곳 — 저장소가 있으면 .git 안, 없으면 지식베이스 폴더."""
+    return pathlib.Path(git(kb, "rev-parse", "--absolute-git-dir").stdout.strip()) if has_repo(kb) else kb
+
+
 class Lock:
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, kb):
+        self.path = str(lock_dir(kb) / "kb-commit.lock")
 
     def __enter__(self):
         end = time.time() + WAIT
@@ -79,6 +88,25 @@ def retry(kb, *a):
     return r
 
 
+def save(kb, msg, names):
+    """적은 파일만 커밋하고 결과 한 줄을 돌려준다. lock 은 부르는 쪽이 잡는다."""
+    if not has_repo(kb):
+        return "기록 저장소 없음"
+    files = sorted({relative(kb, f) for f in names})
+    r = retry(kb, "add", "--", *files)
+    if r.returncode:
+        fail("git add 실패: " + r.stderr.strip()[:300])
+    if git(kb, "diff", "--cached", "--quiet", "--", *files).returncode == 0:
+        return "바뀐 것 없음"
+    who = []
+    if not git(kb, "config", "user.name").stdout.strip() or not git(kb, "config", "user.email").stdout.strip():
+        who = ["-c", "user.name=kb", "-c", "user.email=kb@localhost"]
+    r = retry(kb, *who, "commit", "-q", "--only", "-m", msg, "--", *files)
+    if r.returncode:
+        fail("git commit 실패: " + (r.stderr or r.stdout).strip()[:300])
+    return "커밋 " + git(kb, "rev-parse", "--short", "HEAD").stdout.strip()
+
+
 def main():
     ap = argparse.ArgumentParser(description="바꾼 파일만 커밋")
     ap.add_argument("-m", required=True, dest="msg")
@@ -86,26 +114,13 @@ def main():
     a = ap.parse_args()
 
     kb = S.kb_dir()
-    if not shutil.which("git") or not (kb / ".git").exists():
+    if not has_repo(kb):
         print("기록 저장소 없음")
         return
-    files = sorted({relative(kb, f) for f in a.files})
-    gitdir = pathlib.Path(git(kb, "rev-parse", "--absolute-git-dir").stdout.strip())
-
-    with Lock(str(gitdir / "kb-commit.lock")):
-        r = retry(kb, "add", "--", *files)
-        if r.returncode:
-            fail("git add 실패: " + r.stderr.strip()[:300])
-        if git(kb, "diff", "--cached", "--quiet", "--", *files).returncode == 0:
-            print("바뀐 것 없음")
-            return
-        who = []
-        if not git(kb, "config", "user.name").stdout.strip() or not git(kb, "config", "user.email").stdout.strip():
-            who = ["-c", "user.name=kb", "-c", "user.email=kb@localhost"]
-        r = retry(kb, *who, "commit", "-q", "--only", "-m", a.msg, "--", *files)
-        if r.returncode:
-            fail("git commit 실패: " + (r.stderr or r.stdout).strip()[:300])
-        print("커밋", git(kb, "rev-parse", "--short", "HEAD").stdout.strip())
+    for f in a.files:
+        relative(kb, f)      # 잘못된 경로는 lock 전에 거절
+    with Lock(kb):
+        print(save(kb, a.msg, a.files))
 
 
 if __name__ == "__main__":
