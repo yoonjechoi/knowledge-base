@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "knowledge-base",
-      "description": "지식베이스 넣기 · 찾기 · 결론 저장 · 꺼내기 · 점검(kb). 다른 플러그인은 kb 스킬 하나로만 지식베이스를 쓴다.",
+      "description": "지식베이스 넣기 · 찾기 · 점검(kb). 다른 플러그인은 kb 스킬 하나로만 지식베이스를 쓴다.",
       "source": "./plugins/knowledge-base",
       "category": "productivity",
       "tags": [

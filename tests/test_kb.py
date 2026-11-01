@@ -73,6 +73,18 @@ class Init(Base):
         self.assertEqual((self.kb / "wiki/index.md").read_text(encoding="utf-8"), "내가 고침\n")
 
 
+class Docs(Base):
+    def test_three_operations_and_conclusion_rule(self):
+        skill = (SCRIPTS.parent / "SKILL.md").read_text(encoding="utf-8")
+        rules = RULES.read_text(encoding="utf-8")
+        self.assertIn("「이 결론 저장해 줘」", skill.split("---")[1])
+        self.assertIn("「이 결론 지식베이스에 저장해 줘」", skill.split("---")[1])
+        self.assertNotIn("## Save", skill)
+        self.assertNotIn("|save|", rules + skill + (SCRIPTS / "init.py").read_text(encoding="utf-8"))
+        self.assertIn("대화나 기존 노트에서 나온 결론이면 `raw/` 에 넣지 않고 `synthesis/` 에 넣는다", rules)
+        self.assertIn("pages.py", skill)
+
+
 class Rules(Base):
     def test_my_rules_win_then_default(self):
         self.assertEqual(self.run_py("settings.py", "rules").stdout.strip(), str(RULES))

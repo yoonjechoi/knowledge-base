@@ -46,7 +46,7 @@ def main():
         "\n".join(f"## {n} ({ko})\n(아직 없음)\n" for n, ko in start)
     if write_new(kb / "wiki/index.md", index):
         made.append("wiki/index.md")
-    log = "# 지식베이스 기록\n\n한 줄 머리: `## [YYYY-MM-DD] ingest|query|save|lint | 내용` — 맨 아래에 덧붙이기만 한다.\n\n" + \
+    log = "# 지식베이스 기록\n\n한 줄 머리: `## [YYYY-MM-DD] ingest|query|lint | 내용` — 맨 아래에 덧붙이기만 한다.\n\n" + \
         f"## [{today}] init | 지식베이스 만듦 (카파시 LLM Wiki 방식, raw · wiki 두 층 + rules.md)\n"
     if write_new(kb / "wiki/log.md", log):
         made.append("wiki/log.md")
