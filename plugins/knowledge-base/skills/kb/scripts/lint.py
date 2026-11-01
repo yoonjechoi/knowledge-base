@@ -1,9 +1,9 @@
 """지식베이스 기계 점검 — 판단이 필요 없는 것만. 판단(어긋남 · 낡은 주장 · 빠진 개념)은 AI가 한다.
-칸 목록을 따로 갖지 않는다. wiki/ 안의 폴더가 곧 칸이고, 칸 이름은 index.md 의 `## 폴더이름` 머리와 맞으면 된다.
+폴더 목록을 따로 갖지 않는다. wiki/ 안의 폴더는 index.md 의 `## 폴더이름` 머리와 맞으면 된다.
 
   python3 lint.py [지식베이스 폴더] [--fix]     # 기본 = 내 설정의 kb (~/.config/knowledge-base/config.json)
 
---fix: 링크를 `[[파일-이름|보일 이름]]` 모양으로 맞추고 고친 파일을 「고침: 경로」로 출력한다. 표기만 다른 끊긴 링크는 실제 쪽 이름으로 고치고 쓰던 말을 보일 이름으로 남기며, 보일 이름 없이 하이픈이 보이는 링크에는 보일 이름을 더한다. 머리말 · 코드 · log · 날짜 이름은 건드리지 않고, 그 밖에는 아무것도 바꾸지 않는다.
+--fix: 링크를 `[[파일-이름|보일 이름]]` 모양으로 맞추고 고친 파일을 「고침: 경로」로 출력한다. 표기만 다른 끊긴 링크는 실제 노트 이름으로 고치고 쓰던 말을 보일 이름으로 남기며, 보일 이름 없이 하이픈이 보이는 링크에는 보일 이름을 더한다. 머리말 · 코드 · log · 날짜 이름은 건드리지 않고, 그 밖에는 아무것도 바꾸지 않는다.
 """
 import argparse, importlib.util, pathlib, re, unicodedata
 
@@ -19,7 +19,7 @@ args = ap.parse_args()
 KB = pathlib.Path(args.kb).expanduser() if args.kb else S.kb_dir()
 W = KB / "wiki"
 SPECIAL = {"index", "log", "inbox"}
-DATE = re.compile(r"\d{4}-\d{2}-\d{2}")     # 날짜 이름 쪽은 날짜로 찾으니 링크 · index 를 보지 않는다
+DATE = re.compile(r"\d{4}-\d{2}-\d{2}")     # 날짜 이름 노트는 날짜로 찾으니 링크 · index 를 보지 않는다
 
 
 def visible(p, top=W):
@@ -38,7 +38,8 @@ def find_links(text):
     return {m.split("|")[0].split("#")[0].strip() for m in re.findall(r"\[\[([^\]]+)\]\]", text)}
 
 
-notes = {p.stem: p for p in W.rglob("*.md") if visible(p)}
+paths = [p for p in W.rglob("*.md") if visible(p)]
+notes = {p.stem: p for p in paths}
 same = {}
 for n in notes:
     same.setdefault(key(n), []).append(n)
@@ -53,7 +54,7 @@ def split_body(text):
 
 
 def bare(name):
-    """하이픈이 화면에 그대로 보이게 될 쪽 이름인가 — 날짜 이름은 하이픈이 맞다."""
+    """하이픈이 화면에 그대로 보이게 될 노트 이름인가 — 날짜 이름은 하이픈이 맞다."""
     return "-" in name and not DATE.fullmatch(name)
 
 
@@ -104,21 +105,41 @@ for ts in links.values():
 for n, c in incoming.items():
     if c == 0 and n not in SPECIAL and not DATE.fullmatch(n):
         found.append(("아무도 안 가리킴", str(notes[n].relative_to(KB))))
+by_key = {}
+for p in paths:
+    if not DATE.fullmatch(p.stem):
+        by_key.setdefault(key(p.stem), []).append(p)
+for ps in by_key.values():
+    if len(ps) > 1:
+        found.append(("노트 이름 겹침", " · ".join(sorted(str(p.relative_to(KB)) for p in ps))))
+
+
+def indexed(n):
+    return n in index or n.replace("-", " ") in index
+
+
+folders = {}        # wiki/projects/winter-menu 같은 하위 폴더는 대표 노트 하나만 index 에 오른다
 for n, p in notes.items():
     if n in SPECIAL or DATE.fullmatch(n):
         continue
-    if n not in index and n.replace("-", " ") not in index:
+    parts = p.relative_to(W).parts
+    if len(parts) > 2:
+        folders.setdefault(parts[:2], []).append(n)
+    elif not indexed(n):
         found.append(("index 에 없음", str(p.relative_to(KB))))
+for parts, ns in folders.items():
+    if not any(indexed(n) for n in ns):
+        found.append(("index 에 대표 노트 없음", "wiki/" + "/".join(parts)))
 for p in W.rglob("*"):
     if " " in p.name and visible(p):
         found.append(("이름에 띄어쓰기", str(p.relative_to(KB))))
 for p in W.glob("*.md"):
     if p.stem not in SPECIAL:
-        found.append(("칸 밖에 있음", str(p.relative_to(KB))))
+        found.append(("폴더 밖에 있음", str(p.relative_to(KB))))
 heads = set(re.findall(r"^##\s+(\S+)", index, re.M))
 for cell in (p for p in W.iterdir() if p.is_dir() and visible(p)):
     if cell.name not in heads:
-        found.append(("index 에 칸 머리 없음", str(cell.relative_to(KB))))
+        found.append(("index 에 폴더 머리 없음", str(cell.relative_to(KB))))
     for sub in cell.iterdir():
         if sub.is_dir() and visible(sub) and not list(sub.rglob("*.md")):
             found.append(("노트 없는 폴더", str(sub.relative_to(KB))))
@@ -138,7 +159,7 @@ for x in I.items(KB):
 for ln in I.read(KB).splitlines():
     if ln.startswith("- ") and not I.parse(ln):
         found.append(("대기 줄 모양이 틀림", ln[:60]))
-wiki_text = nfc("\n".join(p.read_text(encoding="utf-8", errors="ignore") for s, p in notes.items() if s != "inbox"))
+wiki_text = nfc("\n".join(p.read_text(encoding="utf-8", errors="ignore") for p in paths if p != W / "inbox.md"))
 if (KB / "raw").is_dir():
     for p in sorted((KB / "raw").rglob("*")):
         if not p.is_file() or not visible(p, KB):
@@ -147,6 +168,6 @@ if (KB / "raw").is_dir():
         if rel not in waiting and nfc(p.name) not in wiki_text and nfc(p.stem) not in wiki_text:
             found.append(("대기에도 노트에도 없는 raw", rel))
 
-print(f"쪽 {len(notes) - len(SPECIAL & set(notes))}개 · 대기 {len(waiting)}개 · 찾은 것 {len(found)}개 · 규칙 {'내 rules.md' if S.rules_path(KB) != S.DEFAULT_RULES else '기본'}")
+print(f"노트 {len(notes) - len(SPECIAL & set(notes))}개 · 대기 {len(waiting)}개 · 찾은 것 {len(found)}개 · 규칙 {'내 rules.md' if S.rules_path(KB) != S.DEFAULT_RULES else '기본'}")
 for k, v in found:
     print(f"- {k}: {v}")

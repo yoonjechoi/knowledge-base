@@ -61,7 +61,7 @@ class Init(Base):
         self.assertIn("찾은 것 0개", self.lint())
 
     def test_keeps_my_rules_and_uses_their_cells(self):
-        self.write("rules.md", "| 칸 | 넣는 것 | 파일 |\n|---|---|---|\n| `recipes/` | 요리 — 메뉴 | 하나 |\n")
+        self.write("rules.md", "| 폴더 | 넣는 것 | 파일 |\n|---|---|---|\n| `recipes/` | 요리 — 메뉴 | 하나 |\n")
         self.init()
         self.assertTrue((self.kb / "wiki/recipes").is_dir())
         self.assertFalse((self.kb / "wiki/topics").exists())
@@ -87,6 +87,26 @@ class Docs(Base):
         self.assertIn("「이 결론 저장해 줘」", skill.split("---")[1])
         self.assertIn("「바로 정리해 줘」", skill.split("---")[1])
         self.assertIn("정리 전 자료", skill)
+
+
+    def test_words_are_note_and_folder(self):
+        names = [SCRIPTS.parent / "SKILL.md", RULES, SCRIPTS.parents[2] / "agents/tidier.md", SCRIPTS.parents[4] / "README.md",
+                 SCRIPTS.parents[2] / ".claude-plugin/plugin.json"] + sorted(SCRIPTS.glob("*.py"))
+        for p in names:
+            t = p.read_text(encoding="utf-8")
+            for ok in ("부르는 쪽", "어느 쪽"):
+                t = t.replace(ok, "")
+            self.assertNotRegex(t, "[칸쪽]", p.name)
+
+    def test_project_rules_and_night_command(self):
+        skill = (SCRIPTS.parent / "SKILL.md").read_text(encoding="utf-8")
+        rules = RULES.read_text(encoding="utf-8")
+        self.assertIn("**프로젝트 하나 = 폴더 하나**", rules)
+        self.assertIn("대표 노트만 올린다", rules)
+        self.assertIn("지식베이스 전체에서 겹치면 안 된다", rules)
+        self.assertIn("**한 명(한 곳) = 노트 하나**", rules)
+        self.assertIn("대표 노트", skill)
+        self.assertIn("「대기 자료 일괄 정리」", skill.split("---")[1])
 
 
 class Inbox(Base):
@@ -170,11 +190,11 @@ class Inbox(Base):
         self.receive("나.md")
         self.assertEqual(self.inbox("begin").returncode, 0)
         self.assertTrue(self.inbox("next").stdout.startswith("raw/가.md"))
-        self.write("wiki/topics/가-쪽.md")
-        r = self.inbox("done", "-m", "ingest: 가", "raw/가.md", "wiki/topics/가-쪽.md")
+        self.write("wiki/topics/가-노트.md")
+        r = self.inbox("done", "-m", "ingest: 가", "raw/가.md", "wiki/topics/가-노트.md")
         self.assertIn("대기 1개", r.stdout)
         shown = self.git("-c", "core.quotePath=false", "show", "--name-only", "--format=", "HEAD").split()
-        self.assertEqual(sorted(shown), ["wiki/inbox.md", "wiki/topics/가-쪽.md"])
+        self.assertEqual(sorted(shown), ["wiki/inbox.md", "wiki/topics/가-노트.md"])
         self.assertTrue(self.inbox("next").stdout.startswith("raw/나.md"))
         self.assertEqual(self.inbox("done", "-m", "x", "raw/없음.md").returncode, 2)
         self.inbox("end")
@@ -232,14 +252,14 @@ class LintInbox(Base):
         self.write("wiki/topics/topic.md")
         self.write("wiki/me/topic-2.md")
         self.write("wiki/diary/2026-11-01.md")
-        self.write("wiki/topics/다른-쪽.md", "\n".join([
+        self.write("wiki/topics/다른-노트.md", "\n".join([
             "[[교회 집사님]]", "[[교회집사님]]", "[[교회-집사님]]", "[[교회 집사님|집사님]]", "[[교회-집사님#약속]]",
-            "[[Topic]]", "[[없는 쪽]]", "[[2026-11-01]]", "`[[교회-집사님]]`", "```", "[[교회-집사님]]", "```", ""]))
+            "[[Topic]]", "[[없는 노트]]", "[[2026-11-01]]", "`[[교회-집사님]]`", "```", "[[교회-집사님]]", "```", ""]))
         r = self.run_py("lint.py", "--fix")
-        self.assertIn("고침: wiki/topics/다른-쪽.md", r.stdout)
-        self.assertEqual((self.kb / "wiki/topics/다른-쪽.md").read_text(encoding="utf-8").splitlines(), [
+        self.assertIn("고침: wiki/topics/다른-노트.md", r.stdout)
+        self.assertEqual((self.kb / "wiki/topics/다른-노트.md").read_text(encoding="utf-8").splitlines(), [
             "[[교회-집사님|교회 집사님]]", "[[교회-집사님|교회집사님]]", "[[교회-집사님|교회 집사님]]", "[[교회-집사님|집사님]]",
-            "[[교회-집사님#약속|교회 집사님]]", "[[topic]]", "[[없는 쪽]]", "[[2026-11-01]]",
+            "[[교회-집사님#약속|교회 집사님]]", "[[topic]]", "[[없는 노트]]", "[[2026-11-01]]",
             "`[[교회-집사님]]`", "```", "[[교회-집사님]]", "```"])
         self.assertIn("끊긴 링크", r.stdout)
         self.assertNotIn("보일 이름 없는 링크", r.stdout)
@@ -279,11 +299,11 @@ class Lint(Base):
     def test_new_folder_needs_only_index_head(self):
         self.init()
         self.write("wiki/recipes/김치찌개.md")
-        self.assertIn("index 에 칸 머리 없음: wiki/recipes", self.lint())
+        self.assertIn("index 에 폴더 머리 없음: wiki/recipes", self.lint())
         with (self.kb / "wiki/index.md").open("a", encoding="utf-8") as f:
             f.write("\n## recipes (요리)\n김치찌개 — 저녁\n")
         out = self.lint()
-        self.assertNotIn("칸 머리", out)
+        self.assertNotIn("폴더 머리", out)
         self.assertNotIn("규칙에 없는", out)
 
     def test_dated_pages_skip_links_and_index_in_any_folder(self):
@@ -300,6 +320,33 @@ class Lint(Base):
         out = self.lint()
         self.assertIn("노트 없는 폴더: wiki/projects/빈-폴더", out)
         self.assertNotIn("assets", out)
+
+    def test_project_folder_needs_only_main_note_in_index(self):
+        self.init()
+        self.write("wiki/projects/winter-menu/겨울-메뉴.md", "[[겨울-메뉴-회의록|회의록]]\n")
+        self.write("wiki/projects/winter-menu/겨울-메뉴-회의록.md", "[[겨울-메뉴|겨울 메뉴]]\n")
+        self.assertIn("index 에 대표 노트 없음: wiki/projects/winter-menu", self.lint())
+        with (self.kb / "wiki/index.md").open("a", encoding="utf-8") as f:
+            f.write("\n겨울-메뉴 — 대표 노트\n")
+        self.assertIn("찾은 것 0개", self.lint())
+
+    def test_customer_note_still_needs_index(self):
+        self.init()
+        self.write("wiki/customers/김-고객.md", "x\n")
+        self.assertIn("index 에 없음: wiki/customers/김-고객.md", self.lint())
+
+    def test_same_note_name_in_two_folders(self):
+        self.init()
+        self.write("wiki/projects/가/회의록.md")
+        self.write("wiki/projects/나/회의록.md")
+        self.write("wiki/topics/겨울-메뉴.md")
+        self.write("wiki/me/겨울 메뉴.md")
+        self.write("wiki/diary/2026-11-01.md")
+        self.write("wiki/work/2026-11-01.md")
+        out = self.lint()
+        self.assertIn("노트 이름 겹침: wiki/projects/가/회의록.md · wiki/projects/나/회의록.md", out)
+        self.assertIn("노트 이름 겹침: wiki/me/겨울 메뉴.md · wiki/topics/겨울-메뉴.md", out)
+        self.assertNotIn("겹침: wiki/diary", out)
 
     def test_hidden_folders_ignored(self):
         self.init()
@@ -352,6 +399,17 @@ class Commit(Base):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self.git("ls-files", "raw"), "")
 
+    def test_moved_file_commits_both_paths(self):
+        self.init()
+        self.write("wiki/projects/겨울-메뉴.md")
+        self.commit("-m", "더함", "wiki/projects/겨울-메뉴.md")
+        (self.kb / "wiki/projects/winter-menu").mkdir()
+        self.git("mv", "--", "wiki/projects/겨울-메뉴.md", "wiki/projects/winter-menu/겨울-메뉴.md")
+        r = self.commit("-m", "옮김", "wiki/projects/겨울-메뉴.md", "wiki/projects/winter-menu/겨울-메뉴.md")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.git("status", "--short"), "")
+        self.assertEqual(self.commit("-m", "x", "없는/파일.md").returncode, 1)
+
     def test_stale_lock_is_taken_over(self):
         self.init()
         lock = self.kb / ".git/kb-commit.lock"
@@ -363,7 +421,7 @@ class Commit(Base):
 
     def test_parallel_sessions_do_not_mix(self):
         self.init()
-        names = [f"wiki/topics/쪽-{i}.md" for i in range(12)]
+        names = [f"wiki/topics/노트-{i}.md" for i in range(12)]
         for n in names:
             self.write(n)
         with concurrent.futures.ThreadPoolExecutor(12) as ex:

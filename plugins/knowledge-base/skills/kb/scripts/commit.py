@@ -93,9 +93,12 @@ def save(kb, msg, names):
     if not has_repo(kb):
         return "기록 저장소 없음"
     files = sorted({relative(kb, f) for f in names})
-    r = retry(kb, "add", "--", *files)
-    if r.returncode:
-        fail("git add 실패: " + r.stderr.strip()[:300])
+    gone = git(kb, "diff", "--cached", "--no-renames", "--diff-filter=D", "--name-only", "-z", "--", *files).stdout.split("\0")   # git mv · git rm 으로 이미 빠진 경로
+    add = [f for f in files if f not in gone]
+    if add:
+        r = retry(kb, "add", "--", *add)
+        if r.returncode:
+            fail("git add 실패: " + r.stderr.strip()[:300])
     if git(kb, "diff", "--cached", "--quiet", "--", *files).returncode == 0:
         return "바뀐 것 없음"
     who = []

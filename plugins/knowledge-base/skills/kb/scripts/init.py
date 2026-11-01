@@ -1,4 +1,4 @@
-"""지식베이스 처음 만들기 — 빈 폴더에 raw · wiki 두 층, 규칙(rules.md), 규칙의 시작 칸들, 길잡이 세 파일(index · log · inbox)을 만든다. 이미 있는 파일은 건드리지 않는다.
+"""지식베이스 처음 만들기 — 빈 폴더에 raw · wiki 두 층, 규칙(rules.md), 규칙의 시작 폴더들, 길잡이 세 파일(index · log · inbox)을 만든다. 이미 있는 파일은 건드리지 않는다.
 
   python3 init.py              # 내 설정의 kb 위치(기본 ~/knowledge-base)에
   python3 init.py <폴더>       # 다른 곳에 — 내 설정의 kb 도 그 폴더로 바꾼다
@@ -12,7 +12,7 @@ S = importlib.util.module_from_spec(_s); _s.loader.exec_module(S)   # 내 설정
 _i = importlib.util.spec_from_file_location("kbinbox", pathlib.Path(__file__).resolve().parent / "inbox.py")
 I = importlib.util.module_from_spec(_i); _i.loader.exec_module(I)   # 대기 목록의 머리 글
 
-CELL = re.compile(r"^\|\s*`([a-z0-9-]+)/`\s*\|\s*([^|]+?)\s*\|", re.M)   # 규칙의 칸 표 한 줄
+CELL = re.compile(r"^\|\s*`([a-z0-9-]+)/`\s*\|\s*([^|]+?)\s*\|", re.M)   # 규칙의 폴더 표 한 줄
 
 
 def write_new(p, text):
@@ -23,7 +23,7 @@ def write_new(p, text):
 
 
 def cells(rules):
-    """규칙의 칸 표에서 (폴더, 짧은 한국어 이름)을 읽는다 — 칸 목록은 규칙 한 곳에만 있다."""
+    """규칙의 폴더 표에서 (폴더, 짧은 한국어 이름)을 읽는다 — 폴더 목록은 규칙 한 곳에만 있다."""
     return [(n, re.split(r"\s[—·]\s", ko)[0]) for n, ko in CELL.findall(rules)]
 
 
@@ -44,7 +44,7 @@ def main():
         p = kb / d
         if not p.exists():
             p.mkdir(parents=True); made.append(d + "/")
-    index = "# 지식베이스 목록\n\n노트 이름을 글자로만 적는다(링크 없이). 칸마다 한 줄 = 노트 이름 — 한 줄 요약.\n\n" + \
+    index = "# 지식베이스 목록\n\n노트 이름을 글자로만 적는다(링크 없이). 폴더마다 한 줄 = 노트 이름 — 한 줄 요약.\n\n" + \
         "\n".join(f"## {n} ({ko})\n(아직 없음)\n" for n, ko in start)
     if write_new(kb / "wiki/index.md", index):
         made.append("wiki/index.md")
