@@ -1,5 +1,13 @@
 # knowledge-base
 
+**설치:** Claude Code 에 이 문장을 붙여 넣으세요.
+
+```
+https://raw.githubusercontent.com/yoonjechoi/knowledge-base/main/INSTALL.md 를 읽고 그대로 설치해 줘
+```
+
+업데이트도 같은 문장에서 「설치」를 「업데이트」로 바꾸면 돼요. 위치, 옵시디언, 매일 밤 정리, 비공개 백업은 AI가 물어보면서 진행해요.
+
 내 지식베이스를 Claude Code 플러그인으로 다뤄요. 카파시 LLM Wiki 방식이에요. `raw/` 원자료를 AI가 `wiki/` 정리 노트로 쌓아 갑니다.
 
 AI가 자료를 읽고 정리한 글 한 편을 **노트**라고 불러요. 노트는 `wiki/` 안의 주제별 **폴더**에 쌓여요.
@@ -19,42 +27,7 @@ AI가 자료를 읽고 정리한 글 한 편을 **노트**라고 불러요. 노�
 - **결론은 바로 들어가요.** 대화나 기존 노트에서 나온 결론은 `raw/` 를 거치지 않고 `wiki/synthesis/` 로 가요.
 - **점검은 정리 직후 돌아요.** 깨진 링크처럼 기계적인 것만 고치고, 내용이 어긋나는 것은 표시만 해서 사람이 판단해요.
 
-## 매일 밤 정리하기
-
-클로드 데스크톱 앱 「예약」에 만들어요. 폴더는 지식베이스 폴더, 권한은 권한 무시, 실행은 이 컴퓨터에서만으로 정해요.
-
-```
-/knowledge-base:kb 대기 자료 일괄 정리
-```
-
-- 예약 시각에 컴퓨터와 앱이 켜져 있어야 돌아요. 못 돈 날의 자료는 대기에 남아 다음에 정리돼요.
-- 정리는 AI 작업이라 대기 자료가 많으면 시간과 사용량이 그만큼 들어요.
-- 대기가 없는 밤에도 점검은 돌고 `log.md` 에 한 줄이 남아요.
-- 대기가 없어도 60줄을 넘는 대표 노트는 나눠요. 한 번에 3개까지예요. 넘는 노트가 없으면 노트를 열지 않아요.
-
-## 설치
-
-Claude Code 에서:
-
-```
-/plugin marketplace add yoonjechoi/knowledge-base
-/plugin install knowledge-base@knowledge-base
-```
-
-그다음 「지식베이스 만들어 줘」라고 하면 기본 `~/knowledge-base`(윈도우 `C:\Users\내이름\knowledge-base`)에 폴더가 생겨요. 다른 곳에 두려면 「○○ 폴더에 지식베이스 만들어 줘」.
-
-## 업데이트
-
-터미널에서:
-
-```
-claude plugin marketplace update knowledge-base
-claude plugin update knowledge-base@knowledge-base
-```
-
-떠 있는 세션은 옛 판을 계속 써요. 그 세션에서 `/reload-plugins` 를 치거나 다시 시작하면 새 판이 적용돼요. 내 지식베이스 폴더와 `rules.md` 는 바뀌지 않아요.
-
-## 내 지식베이스에 있는 것
+## 폴더 구조
 
 ```
 ~/knowledge-base/
@@ -110,15 +83,3 @@ AI는 어떤 작업이든 먼저 규칙을 읽어요. 전체는 `rules.md` 에 �
 - 지식베이스 폴더, 설정, kb 스크립트를 직접 쓰지 않아요. 위치는 kb 만 알아요.
 - 노트 틀은 부르는 플러그인이 갖고 있다가 넘겨요.
 - 의존은 한 방향이에요. `plugin.json` 에 `dependencies` 로 knowledge-base 를 적어요. 마켓플레이스가 다르면 자기 `marketplace.json` 의 `allowCrossMarketplaceDependenciesOn` 도 필요해요.
-
-## 필요한 것
-
-- Claude Code
-- 파이썬 3.9 이상 (윈도우는 `python` 또는 `py` 로 불러도 돼요)
-- git. 있으면 지식베이스 바뀐 기록이 남아요. 없어도 쓸 수 있어요
-
-## 시험
-
-```
-python3 -m unittest discover -s tests
-```

@@ -1,6 +1,6 @@
 {
   "name": "knowledge-base",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "내 지식베이스(카파시 LLM Wiki 방식 — raw 원자료 · wiki 정리 노트). 넣기(받기 · 정리) · 찾기 · 점검을 kb 스킬 하나로 한다. 규칙은 지식베이스 안의 rules.md, 분류는 wiki/ 폴더라 플러그인을 고치지 않고 늘릴 수 있다.",
   "author": {
     "name": "yoonjechoi"

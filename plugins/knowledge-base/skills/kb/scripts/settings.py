@@ -9,7 +9,7 @@
 """
 import json, os, pathlib, sys
 
-for _o in (sys.stdout, sys.stderr):   # 윈도우 터미널에서도 한글이 안 깨지게
+for _o in (sys.stdin, sys.stdout, sys.stderr):   # 윈도우에서도 입력 · 출력의 한글이 안 깨지게
     try:
         _o.reconfigure(encoding="utf-8")
     except Exception:

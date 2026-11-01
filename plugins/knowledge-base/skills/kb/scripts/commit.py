@@ -60,13 +60,13 @@ class Lock:
             try:
                 os.close(os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
                 return self
-            except FileExistsError:
+            except (FileExistsError, PermissionError):     # 윈도우는 지워지는 중인 파일에 PermissionError 를 낸다
                 try:
                     if time.time() - os.path.getmtime(self.path) > STALE:
                         os.unlink(self.path)
                         continue
                 except OSError:
-                    continue
+                    pass
                 if time.time() > end:
                     fail("lock 을 못 잡음 — 커밋하지 않고 멈춤")
                 time.sleep(0.2)

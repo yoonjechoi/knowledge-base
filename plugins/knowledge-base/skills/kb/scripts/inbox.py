@@ -112,18 +112,20 @@ def add(kb, a):
 
 def begin(kb):
     path = C.lock_dir(kb) / "kb-tidy.lock"
-    while True:
+    for _ in range(50):
         try:
             os.close(os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
             break
-        except FileExistsError:
+        except (FileExistsError, PermissionError):     # 윈도우는 지워지는 중인 파일에 PermissionError 를 낸다
             try:
                 if time.time() - os.path.getmtime(path) <= TIDY_STALE:
                     print("다른 정리가 도는 중")
                     sys.exit(3)
                 os.unlink(path)
-            except FileNotFoundError:
-                pass
+            except OSError:
+                time.sleep(0.1)
+    else:
+        C.fail("정리 표시를 못 만듦")
     with C.Lock(kb):
         lines = read(kb).splitlines(keepends=True)
         out = []

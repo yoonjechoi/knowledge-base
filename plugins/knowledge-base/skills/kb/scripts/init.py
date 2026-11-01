@@ -63,7 +63,7 @@ def main():
     elif (kb / ".git").exists():
         gitmsg = "git 저장소가 이미 있음"
     else:
-        run = lambda *a: subprocess.run([git, "-C", str(kb), *a], capture_output=True, text=True)
+        run = lambda *a: subprocess.run([git, "-C", str(kb), *a], capture_output=True, text=True, encoding="utf-8", errors="replace")
         run("init", "-q")
         run("add", "--", "rules.md", "wiki/index.md", "wiki/log.md", "wiki/inbox.md", ".gitignore")
         r = run("-c", "user.name=kb", "-c", "user.email=kb@localhost", "commit", "-qm", "init: 지식베이스 만듦")

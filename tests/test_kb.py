@@ -90,13 +90,30 @@ class Docs(Base):
 
 
     def test_words_are_note_and_folder(self):
-        names = [SCRIPTS.parent / "SKILL.md", RULES, SCRIPTS.parents[2] / "agents/tidier.md", SCRIPTS.parents[4] / "README.md",
+        names = [SCRIPTS.parent / "SKILL.md", RULES, SCRIPTS.parents[2] / "agents/tidier.md", SCRIPTS.parents[4] / "README.md", SCRIPTS.parents[4] / "INSTALL.md",
                  SCRIPTS.parents[2] / ".claude-plugin/plugin.json"] + sorted(SCRIPTS.glob("*.py"))
         for p in names:
             t = p.read_text(encoding="utf-8")
             for ok in ("부르는 쪽", "어느 쪽"):
                 t = t.replace(ok, "")
             self.assertNotRegex(t, "[칸쪽]", p.name)
+
+    def test_install_doc_for_agents_and_readme_for_people(self):
+        root = SCRIPTS.parents[4]
+        install = (root / "INSTALL.md").read_text(encoding="utf-8")
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        self.assertTrue(install.startswith("> 이 문서는 AI 에이전트용입니다."))
+        self.assertIn("raw.githubusercontent.com/yoonjechoi/knowledge-base/main/INSTALL.md", readme)
+        for head in ("## 1. 환경 점검", "## 2. 플러그인 설치", "## 3. 지식베이스 처음 만들기", "## 4. 설치 확인", "## 5. 선택 항목",
+                     "## 6. 업데이트", "## 실패했을 때", "## 사람이 해야 하는 일"):
+            self.assertIn(head, install)
+        self.assertIn("/knowledge-base:kb 대기 자료 일괄 정리", install)
+        self.assertIn("## 지원 운영체제", install)
+        self.assertIn("**코드만 읽음**", install)
+        self.assertIn("gh repo create <이름> --private", install)
+        self.assertNotIn("/plugin install", readme)
+        for head in ("## 기본 규칙", "## 응용해서 쓰기", "## 폴더 구조", "## 다른 플러그인에서 쓰기"):
+            self.assertIn(head, readme)
 
     def test_project_rules_and_night_command(self):
         skill = (SCRIPTS.parent / "SKILL.md").read_text(encoding="utf-8")
@@ -148,6 +165,15 @@ class Inbox(Base):
         self.assertTrue(p.read_text(encoding="utf-8").startswith("> 출처: 문자"))
         self.receive("영수증.PNG")
         self.assertTrue((self.kb / "raw/assets/영수증.png").is_file())
+
+    def test_korean_stdin_and_output_when_system_encoding_is_not_utf8(self):
+        self.init()
+        env = dict(self.env(), PYTHONIOENCODING="cp949")     # 윈도우 한글판과 같은 조건
+        r = subprocess.run([sys.executable, str(SCRIPTS / "inbox.py"), "add", "--stdin", "--title", "메모", "--topic", "t", "--facts", "f"],
+                           env=env, input="한글 본문 — 끝".encode("utf-8"), capture_output=True)
+        self.assertEqual(r.returncode, 0, r.stderr.decode("utf-8", "replace"))
+        self.assertIn("받음", r.stdout.decode("utf-8"))
+        self.assertIn("한글 본문 — 끝", next((self.kb / "raw").glob("*메모.md")).read_text(encoding="utf-8"))
 
     def test_existing_raw_and_bad_input(self):
         self.init()
@@ -467,6 +493,20 @@ class Commit(Base):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.git("status", "--short"), "")
         self.assertEqual(self.commit("-m", "x", "없는/파일.md").returncode, 1)
+
+    def test_unwritable_folder_stops_instead_of_waiting_forever(self):
+        code = ("import importlib.util, pathlib, sys\n"
+                f"s = importlib.util.spec_from_file_location('c', {str(SCRIPTS / 'commit.py')!r})\n"
+                "c = importlib.util.module_from_spec(s); s.loader.exec_module(c)\n"
+                "c.WAIT = 0.3\n"
+                "with c.Lock(pathlib.Path(sys.argv[1])):\n    pass\n")
+        d = self.root / "못-씀"
+        d.mkdir()
+        d.chmod(0o555)
+        self.addCleanup(d.chmod, 0o755)
+        r = subprocess.run([sys.executable, "-c", code, str(d)], env=self.env(), capture_output=True, text=True, encoding="utf-8", timeout=20)
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("lock 을 못 잡음", r.stderr)
 
     def test_stale_lock_is_taken_over(self):
         self.init()
