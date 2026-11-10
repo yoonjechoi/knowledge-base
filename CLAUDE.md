@@ -13,3 +13,4 @@
 | 2026-11-11 | ingester 에이전트의 모델을 정하지 않음(쓰는 사람의 기본 설정 모델로 돎), 부를 때도 model 을 넘기지 않음 | agents/ingester, skills/kb | 저장소 주인 요청 — 수강생은 sonnet 으로 써야 사용량이 덜 듦 |
 | 2026-11-11 | 1.0.0 — llm-wiki-plugin 내용으로 통째로 바꿈(스킬 setup · ingest · query · lint, 에이전트 batch-ingester, 도우미 wiki.py). 옛 kb 는 얇은 입구로, 옛 구조 지식베이스는 move-old 로 옆에 보관 | 전체 | 저장소 주인 요청 — gist 그대로, 이름만 knowledge-base |
 | 2026-11-11 | 1.0.1 — query 가 「결론을 받아 저장만」 요청이면 찾기를 건너뛰고 analyses 에 바로 저장 | skills/query | 다른 플러그인이 kb 대신 query 로 결론을 저장하게 바뀜 |
+| 2026-11-11 | 파일 이름에 윈도우 금지 문자(\ / : * ? " < > \|)를 쓰지 않는 규칙을 schema 틀 · ingest · query 에 | templates/schema.md, skills/ingest, skills/query | 윈도우에서 제목에 : ? 가 든 원자료 파일이 안 만들어질 수 있음(코드 읽기로 찾음) |

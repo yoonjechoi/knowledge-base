@@ -137,6 +137,10 @@ class Docs(unittest.TestCase):
         self.assertIn("결론 저장", kb)
         self.assertNotIn("llm-wiki", "".join(p.read_text(encoding="utf-8") for p in PLUGIN.rglob("*.md")))
 
+    def test_windows_forbidden_filename_chars_rule(self):
+        for f in ("templates/schema.md", "skills/ingest/SKILL.md", "skills/query/SKILL.md"):
+            self.assertIn('`\\ / : * ? " < > |`', (PLUGIN / f).read_text(encoding="utf-8"), f)
+
     def test_log_prefix_is_gist_form(self):
         for f in ("templates/log.md", "templates/schema.md", "skills/ingest/SKILL.md", "skills/query/SKILL.md", "skills/lint/SKILL.md"):
             self.assertRegex((PLUGIN / f).read_text(encoding="utf-8"), r"## \[(YYYY-MM-DD|오늘|\{\{오늘\}\})\] (ingest|query|lint|setup) \|", f)
