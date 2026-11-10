@@ -1,13 +1,14 @@
 {
   "name": "knowledge-base",
-  "version": "0.4.0",
-  "description": "내 지식베이스(카파시 LLM Wiki 방식 — raw 원자료 · wiki 정리 노트). 설치 뒤 setup, 그다음 ingest(넣기 — 노트는 뒷단에서) · query(찾기) · lint(점검) 세 동작을 kb 스킬 하나로 한다. 규칙은 지식베이스 안의 rules.md, 분류는 wiki/ 폴더라 플러그인을 고치지 않고 늘릴 수 있다.",
+  "version": "1.0.0",
+  "description": "카파시 LLM Wiki gist 그대로의 개인 지식베이스. raw(원자료) · wiki(LLM 이 쓰는 페이지) · schema(CLAUDE.md) 세 층, 동작은 ingest · query · lint, 처음 한 번 setup. 옛 입구 kb 는 다른 플러그인용.",
   "author": {
     "name": "yoonjechoi"
   },
   "keywords": [
     "knowledge-base",
     "llm-wiki",
+    "karpathy",
     "korean"
   ],
   "license": "MIT"
