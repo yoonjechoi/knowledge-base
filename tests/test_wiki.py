@@ -114,6 +114,22 @@ class Pending(Base):
         self.assertIn("모두 ingest 됨", self.run_wiki("pending").stdout)
 
 
+class Commit(Base):
+    @unittest.skipUnless(shutil.which("git"), "git 없음")
+    def test_commit_only_listed_files_without_git_identity(self):
+        self.run_wiki("setup")
+        (self.kb / "raw/a.md").write_text("가", encoding="utf-8")
+        (self.kb / "raw/b.md").write_text("나", encoding="utf-8")
+        r = self.run_wiki("commit", "-m", "ingest: 가", "raw/a.md")   # 시험 환경엔 git 이름 · 이메일이 없다
+        self.assertIn("커밋", r.stdout, r.stdout + r.stderr)
+        env = dict(os.environ, GIT_CONFIG_GLOBAL=str(self.root / "nogit"), GIT_CONFIG_NOSYSTEM="1")
+        st = subprocess.run(["git", "-C", str(self.kb), "status", "--porcelain"], env=env, capture_output=True, text=True, encoding="utf-8").stdout
+        self.assertIn("b.md", st)
+        self.assertNotIn("a.md", st)
+        self.assertIn("바뀐 것 없음", self.run_wiki("commit", "-m", "x", "raw/a.md").stdout)
+        self.assertNotEqual(self.run_wiki("commit", "-m", "x", "raw/없음.md").returncode, 0)
+
+
 class Docs(unittest.TestCase):
     def test_skills_and_agent(self):
         for s in ("setup", "ingest", "query", "lint"):
@@ -123,6 +139,7 @@ class Docs(unittest.TestCase):
             self.assertIn("description:", head)
             self.assertIn("CLAUDE.md", t)
             self.assertIn("../../scripts/wiki.py", t)
+            self.assertNotIn("git -C <지식베이스> add", t)
         agent = (PLUGIN / "agents" / "batch-ingester.md").read_text(encoding="utf-8")
         self.assertNotIn("\nmodel:", agent.split("---")[1])   # 쓰는 사람의 기본 설정 모델로 돈다
         ingest = (PLUGIN / "skills/ingest/SKILL.md").read_text(encoding="utf-8")

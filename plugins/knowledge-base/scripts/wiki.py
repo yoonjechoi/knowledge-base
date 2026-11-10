@@ -4,6 +4,7 @@
   python3 wiki.py setup [폴더]        # 뼈대를 만든다. 이미 있는 파일은 그대로. 폴더를 주면 설정도 그 폴더로
   python3 wiki.py pending            # raw/ 에 있는데 wiki/sources/ 의 어느 요약 페이지도 가리키지 않는 파일
   python3 wiki.py move-old           # 옛 구조(knowledge-base 0.x) 지식베이스를 옆의 <이름>-old-YYYYMMDD 로 옮긴다
+  python3 wiki.py commit -m "ingest: 제목" <파일들>   # 적은 파일만 커밋. git 이름 · 이메일이 없으면 kb 로
 
 위치는 플러그인 밖 ~/.config/knowledge-base/config.json 의 "kb" 한 줄이다(플러그인을 업데이트해도 안 지워진다). 그 파일의 다른 값은 읽지도 출력하지도 않고 그대로 둔다.
 나머지 일(읽기 · 쓰기 · 링크 · 판단)은 LLM 이 한다. 이 프로그램은 매번 같아야 하는 일만 한다.
@@ -106,6 +107,29 @@ def move_old():
     print("옮김:", w, "→", dest)
 
 
+def commit(msg, files):
+    """적은 파일만 커밋한다(지식베이스 기준 경로). git 이름 · 이메일이 없는 컴퓨터(수강생 윈도우 등)에서도 kb 이름으로 커밋한다."""
+    w = wiki_dir()
+    git = shutil.which("git")
+    if not git or not (w / ".git").exists():
+        print("기록 저장소 없음 — 커밋 건너뜀")
+        return
+    run = lambda *a: subprocess.run([git, "-C", str(w), *a], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    files = [f.replace("\\", "/") for f in files]
+    missing = [f for f in files if not (w / f).exists() and run("ls-files", "--error-unmatch", "--", f).returncode != 0]
+    if missing:
+        sys.exit("없는 파일: " + ", ".join(missing))
+    run("add", "--", *files)
+    who = [] if run("config", "user.name").stdout.strip() and run("config", "user.email").stdout.strip() \
+        else ["-c", "user.name=kb", "-c", "user.email=kb@localhost"]
+    r = run(*who, "commit", "-q", "-m", msg, "--", *files)
+    if r.returncode != 0:
+        out = (r.stdout + r.stderr).strip()
+        print("바뀐 것 없음" if "nothing" in out or "no changes" in out else "커밋 실패: " + out[-300:])
+        return
+    print("커밋", run("rev-parse", "--short", "HEAD").stdout.strip())
+
+
 def pending():
     w = wiki_dir()
     raw = w / "raw"
@@ -128,5 +152,7 @@ if __name__ == "__main__":
         pending()
     elif cmd == "move-old":
         move_old()
+    elif cmd == "commit" and len(sys.argv) > 4 and sys.argv[2] == "-m":
+        commit(sys.argv[3], sys.argv[4:])
     else:
         sys.exit(__doc__)

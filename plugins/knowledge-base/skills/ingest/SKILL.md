@@ -40,7 +40,7 @@ description: 카파시 LLM Wiki 방식 지식베이스에 자료를 넣는다 �
 4. **전체 개요** — 이 자료가 큰 그림을 바꾸면 `wiki/overview.md` 를 고친다.
 5. **index** — 새 페이지를 종류별 머리 아래에 한 줄씩 더하고, 요약이 바뀐 페이지는 그 줄을 고친다.
 6. **log** — `wiki/log.md` 맨 아래에 `## [오늘] ingest | 원자료 제목` 과 건드린 페이지 목록.
-7. **커밋** — 바꾼 파일만: `git -C <지식베이스> add <원자료> <페이지들> wiki/index.md wiki/log.md` → `commit -m "ingest: 제목"`. `add -A` 는 쓰지 않는다(다른 세션이 쓰는 중일 수 있다). git 이 없으면 건너뛴다.
+7. **커밋** — 바꾼 파일만: `wiki.py commit -m "ingest: 제목" <원자료> <페이지들> wiki/index.md wiki/log.md`(지식베이스 기준 경로). 적은 파일만 커밋하고(다른 세션이 쓰는 중일 수 있다), git 이름 · 이메일이 없는 컴퓨터에서도 된다. git 이 없으면 「기록 저장소 없음」으로 건너뛴다. `git add -A` · `git commit` 을 직접 치지 않는다.
 
 ## 4. 보고
 

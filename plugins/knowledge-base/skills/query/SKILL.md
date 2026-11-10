@@ -18,4 +18,4 @@ description: 카파시 LLM Wiki 방식 지식베이스에서 찾아 답한다 �
    - 근거 페이지들에 이 분석으로 가는 링크 한 줄, 큰 그림을 바꾸면 `wiki/overview.md` 도.
    - `wiki/index.md` 의 분석 머리 아래 한 줄.
    이렇게 해야 질문으로 찾아낸 것도 넣은 자료처럼 쌓인다.
-5. **log** — `wiki/log.md` 맨 아래에 `## [오늘] query | 질문 한 줄`(저장했으면 만든 페이지도). 바꾼 파일만 커밋: `git -C <지식베이스> add <파일들>` → `commit -m "query: 질문"`. git 이 없으면 건너뛴다.
+5. **log** — `wiki/log.md` 맨 아래에 `## [오늘] query | 질문 한 줄`(저장했으면 만든 페이지도). 바꾼 파일만 커밋: `wiki.py commit -m "query: 질문" <파일들>`(찾기만 했으면 `wiki/log.md` 하나). git 이 없으면 건너뛴다.
