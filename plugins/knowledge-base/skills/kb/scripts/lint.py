@@ -6,7 +6,7 @@
 
 --fix: 링크를 `[[파일-이름|보일 이름]]` 모양으로 맞추고 고친 파일을 「고침: 경로」로 출력한다. 표기만 다른 끊긴 링크는 실제 노트 이름으로 고치고 쓰던 말을 보일 이름으로 남기며, 보일 이름 없이 하이픈이 보이는 링크에는 보일 이름을 더한다. 머리말 · 코드 · log · 날짜 이름은 건드리지 않고, 그 밖에는 아무것도 바꾸지 않는다.
 
-대표 노트 = 하위 폴더(wiki/projects/winter-menu 같은) 안에서 index.md 항목 이름과 똑같은 노트. 60줄을 넘으면 경고만 한다. 나누기는 정리가 한다.
+대표 노트 = 하위 폴더(wiki/projects/winter-menu 같은) 안에서 index.md 항목 이름과 똑같은 노트. 60줄을 넘으면 경고만 한다. 나누기는 ingest 의 노트 쓰기가 한다.
 머리의 `split_hold: 줄 수 이유` 가 있으면 그 줄 수보다 30줄 늘 때까지 「나누기 보류」로만 보여 준다.
 """
 import argparse, importlib.util, pathlib, re, subprocess, sys, unicodedata

@@ -1,14 +1,15 @@
-"""대기 목록 — 받았지만 아직 정리하지 않은 자료. 지식베이스의 wiki/inbox.md 하나에 한 줄씩 있고, 이 프로그램만 고친다.
+"""대기 목록 — raw 에 저장했지만 아직 노트를 쓰지 않은 자료(ingest 의 두 단계 사이). 지식베이스의 wiki/inbox.md 하나에 한 줄씩 있고, 이 프로그램만 고친다.
 
   한 줄: - raw 경로 | 받은 날 | 출처 | 주제 | 핵심 사실 [| 보류: 이유]
 
-받기 (수 초):
+ingest 1단계 raw 저장 (수 초):
   python3 inbox.py add --file <파일> --topic 주제 --facts 핵심사실 [--title 제목] [--source 출처]
   python3 inbox.py add --stdin --title 제목 --topic 주제 --facts 핵심사실 [--source 출처]   # 글은 표준 입력으로
   python3 inbox.py add --raw raw/이미-있는-파일.md --topic 주제 --facts 핵심사실 [--source 출처]
+  --conclusion 을 붙이면 대화에서 나온 결론으로 저장한다(대기 줄의 출처가 「결론 · 출처」, 노트 쓰기가 synthesis/ 에 넣는다)
 보기:
   python3 inbox.py list
-정리 (한 번에 한 실행만):
+ingest 2단계 노트 쓰기 (한 번에 한 실행만, 보통 뒷단 에이전트가):
   python3 inbox.py begin                                    # 다른 정리가 돌면 종료 코드 3. 지난 보류를 풀어 다시 시도한다
   python3 inbox.py next                                     # 다음 항목 한 줄, 없으면 「대기 없음」
   python3 inbox.py done -m "ingest: 제목" <raw 경로> [파일들]  # 항목을 빼고 적은 파일과 함께 커밋
@@ -24,7 +25,7 @@ C = importlib.util.module_from_spec(_c); _c.loader.exec_module(C)   # 커밋과 
 S = C.S
 
 NAME = "wiki/inbox.md"
-HEAD = ("# 대기 목록\n\n받았지만 아직 정리하지 않은 자료. kb 스킬의 inbox.py 만 고친다.\n"
+HEAD = ("# 대기 목록\n\nraw 에 저장했지만 아직 노트를 쓰지 않은 자료. kb 스킬의 inbox.py 만 고친다.\n"
         "한 줄 = `- raw 경로 | 받은 날 | 출처 | 주제 | 핵심 사실`\n\n")
 TIDY_STALE = 1800      # 이보다 오래 소식이 없는 정리는 멈춘 것으로 본다
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic", ".svg"}
@@ -79,6 +80,8 @@ def unique(path):
 
 def add(kb, a):
     today = datetime.date.today().isoformat()
+    if a.conclusion:
+        a.source = "결론 · " + field(a.source or "대화")
     body = sys.stdin.read() if a.stdin else None
     src = pathlib.Path(a.file).expanduser() if a.file else None
     if src and not src.is_file():
@@ -106,7 +109,7 @@ def add(kb, a):
         text = read(kb)
         line = f"- {rel} | {today} | {field(a.source)} | {field(a.topic)} | {field(a.facts)}\n"
         write(kb, (text if text.endswith("\n") else text + "\n") + line)
-        done = C.save(kb, f"inbox: {field(a.title or a.topic)}", new + [NAME])
+        done = C.save(kb, f"ingest: raw 저장 · {field(a.title or a.topic)}", new + [NAME])
         print(f"받음 {rel} · 대기 {len(items(kb))}개 · {done}")
 
 
@@ -197,7 +200,7 @@ def main():
     p = sub.add_parser("add")
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--file"); g.add_argument("--stdin", action="store_true"); g.add_argument("--raw")
-    p.add_argument("--title"); p.add_argument("--source")
+    p.add_argument("--title"); p.add_argument("--source"); p.add_argument("--conclusion", action="store_true")
     p.add_argument("--topic", required=True); p.add_argument("--facts", required=True)
     sub.add_parser("list"); sub.add_parser("begin"); sub.add_parser("next"); sub.add_parser("end")
     p = sub.add_parser("done"); p.add_argument("-m", required=True, dest="msg"); p.add_argument("raw"); p.add_argument("files", nargs="*")

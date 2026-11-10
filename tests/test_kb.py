@@ -32,7 +32,7 @@ class Base(unittest.TestCase):
                               capture_output=True, text=True, encoding="utf-8")
 
     def init(self):
-        r = self.run_py("init.py")
+        r = self.run_py("setup.py")
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def git(self, *a):
@@ -81,8 +81,22 @@ class Docs(Base):
         self.assertIn("「이 결론 저장해 줘」", skill.split("---")[1])
         self.assertIn("「이 결론 지식베이스에 저장해 줘」", skill.split("---")[1])
         self.assertNotIn("## Save", skill)
-        self.assertNotIn("|save|", rules + skill + (SCRIPTS / "init.py").read_text(encoding="utf-8"))
-        self.assertIn("대화나 기존 노트에서 나온 결론이면 `raw/` 에 넣지 않고 `synthesis/` 에 넣는다", rules)
+        self.assertNotIn("|save|", rules + skill + (SCRIPTS / "setup.py").read_text(encoding="utf-8"))
+        self.assertIn("대화나 기존 노트에서 나온 결론도 넣기로 `raw/` 에 담는다", rules)
+        self.assertIn("--stdin --conclusion --source 대화", skill)
+        self.assertNotIn("### 결론 넣기", skill)
+        for op in ("## setup —", "## ingest —", "## query —", "## lint —"):
+            self.assertIn(op, skill)
+        for gone in ("## init", "capture", "## Query", "## Lint"):
+            self.assertNotIn(gone, skill)
+        self.assertIn("run_in_background: true", skill)
+        self.assertIn("knowledge-base:ingester", skill)
+        self.assertIn("references/ingest.md", skill)
+        agent = (SCRIPTS.parents[2] / "agents/ingester.md").read_text(encoding="utf-8")
+        self.assertIn("name: ingester", agent)
+        self.assertNotIn("\nmodel:", agent.split("---")[1])   # 쓰는 사람의 기본 설정 모델로 돈다
+        self.assertIn("references/ingest.md", agent)
+        self.assertIn("inbox.py begin", (SCRIPTS.parent / "references/ingest.md").read_text(encoding="utf-8"))
         self.assertNotIn("꺼내기", skill + rules)
         self.assertIn("「이 결론 저장해 줘」", skill.split("---")[1])
         self.assertIn("「바로 정리해 줘」", skill.split("---")[1])
@@ -90,7 +104,7 @@ class Docs(Base):
 
 
     def test_words_are_note_and_folder(self):
-        names = [SCRIPTS.parent / "SKILL.md", RULES, SCRIPTS.parents[2] / "agents/tidier.md", SCRIPTS.parents[4] / "README.md", SCRIPTS.parents[4] / "INSTALL.md",
+        names = [SCRIPTS.parent / "SKILL.md", RULES, SCRIPTS.parents[2] / "agents/ingester.md", SCRIPTS.parent / "references/ingest.md", SCRIPTS.parents[4] / "README.md", SCRIPTS.parents[4] / "INSTALL.md",
                  SCRIPTS.parents[2] / ".claude-plugin/plugin.json"] + sorted(SCRIPTS.glob("*.py"))
         for p in names:
             t = p.read_text(encoding="utf-8")
@@ -104,7 +118,7 @@ class Docs(Base):
         readme = (root / "README.md").read_text(encoding="utf-8")
         self.assertTrue(install.startswith("> 이 문서는 AI 에이전트용입니다."))
         self.assertIn("raw.githubusercontent.com/yoonjechoi/knowledge-base/main/INSTALL.md", readme)
-        for head in ("## 1. 환경 점검", "## 2. 플러그인 설치", "## 3. 지식베이스 처음 만들기", "## 4. 설치 확인", "## 5. 선택 항목",
+        for head in ("## 1. 환경 점검", "## 2. 플러그인 설치", "## 3. setup — 지식베이스 만들기", "## 4. 설치 확인", "## 5. 선택 항목",
                      "## 6. 업데이트", "## 실패했을 때", "## 사람이 해야 하는 일"):
             self.assertIn(head, install)
         self.assertIn("/knowledge-base:kb 대기 자료 일괄 정리", install)
@@ -117,6 +131,7 @@ class Docs(Base):
 
     def test_project_rules_and_night_command(self):
         skill = (SCRIPTS.parent / "SKILL.md").read_text(encoding="utf-8")
+        steps = skill + (SCRIPTS.parent / "references/ingest.md").read_text(encoding="utf-8")
         rules = RULES.read_text(encoding="utf-8")
         self.assertIn("**프로젝트 하나 = 폴더 하나**", rules)
         self.assertIn("대표 노트만 올린다", rules)
@@ -126,9 +141,9 @@ class Docs(Base):
         self.assertIn("「대기 자료 일괄 정리」", skill.split("---")[1])
         self.assertIn("대략 60줄", rules)
         self.assertIn("split_hold", rules + skill)
-        self.assertIn("대기가 없어도 한다", skill)
+        self.assertIn("대기가 없어도 한다", steps)
         self.assertIn("(내용은 읽지 않는다)", skill)
-        self.assertIn("한 실행에 3개까지", skill)
+        self.assertIn("한 실행에 3개까지", steps)
 
 
 class Inbox(Base):
@@ -165,6 +180,16 @@ class Inbox(Base):
         self.assertTrue(p.read_text(encoding="utf-8").startswith("> 출처: 문자"))
         self.receive("영수증.PNG")
         self.assertTrue((self.kb / "raw/assets/영수증.png").is_file())
+
+    def test_conclusion_is_captured_to_raw_with_mark(self):
+        self.init()
+        r = self.inbox("add", "--stdin", "--conclusion", "--title", "덱 결론", "--topic", "발표 덱", "--facts", "흰 바탕", stdin="결론: 흰 바탕")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        p = next((self.kb / "raw").glob("*덱-결론.md"))
+        self.assertTrue(p.read_text(encoding="utf-8").startswith("> 출처: 결론 · 대화"))
+        self.assertEqual(self.waiting()[0].split(" | ")[2], "결론 · 대화")
+        self.inbox("add", "--stdin", "--conclusion", "--title", "둘째", "--topic", "t", "--facts", "f", "--source", "라실장", stdin="x")
+        self.assertEqual(self.waiting()[1].split(" | ")[2], "결론 · 라실장")
 
     def test_korean_stdin_and_output_when_system_encoding_is_not_utf8(self):
         self.init()

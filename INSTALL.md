@@ -74,7 +74,7 @@ claude plugin list --json
 
 그다음 `claude plugin list --json` 을 다시 쳐서 그 항목의 `installPath` 를 아래 `<PLUGIN>` 자리에 쓴다. 판이 올라가면 경로도 바뀐다. 경로에 띄어쓰기가 있을 수 있으니 명령에서는 `<PLUGIN>` · `<KB>` · `<폴더>` 를 큰따옴표로 감싼다.
 
-## 3. 지식베이스 처음 만들기
+## 3. setup — 지식베이스 만들기
 
 지금 위치를 본다.
 
@@ -93,11 +93,11 @@ claude plugin list --json
 | 다른 파일이 있음 | 들어 있는 것을 알리고 다른 폴더를 권한다. 사용자가 그래도 쓰겠다고 할 때만 만든다 |
 
 ```
-<PY> "<PLUGIN>/skills/kb/scripts/init.py"              # 기본 위치
-<PY> "<PLUGIN>/skills/kb/scripts/init.py" "<폴더>"     # 다른 위치. 설정도 그 폴더로 바뀐다
+<PY> "<PLUGIN>/skills/kb/scripts/setup.py"              # 기본 위치
+<PY> "<PLUGIN>/skills/kb/scripts/setup.py" "<폴더>"     # 다른 위치. 설정도 그 폴더로 바뀐다
 ```
 
-`init.py` 는 이미 있는 파일을 건드리지 않는다.
+`setup.py` 는 이미 있는 파일을 건드리지 않는다.
 
 ## 4. 설치 확인
 
@@ -121,7 +121,7 @@ claude plugin list --json
 
 ### 매일 밤 정리 예약
 
-앱 화면 작업이라 사람이 한다. 안내:
+넣기가 노트를 바로 뒷단에서 쓰므로 없어도 된다. 중간에 멈춰 대기에 남은 자료를 밤에 마저 쓰고 싶을 때만 둔다. 앱 화면 작업이라 사람이 한다. 안내:
 
 1. 클로드 데스크톱 앱에서 「예약」을 열고 새 예약을 만든다.
 2. 시각은 새벽(예: 03:00), 폴더는 지식베이스 폴더, 권한은 권한 무시, 실행은 이 컴퓨터에서만. 사람이 없을 때 도는 작업이라 권한 창에서 멈추지 않게 권한 무시로 둔다. 그래서 다른 폴더가 아니라 지식베이스 폴더로 정한다.
@@ -238,7 +238,7 @@ claude plugin update knowledge-base@knowledge-base
 | `enabled` 가 `false` | `claude plugin enable knowledge-base@knowledge-base` |
 | 파이썬이 없거나 3.9 미만 | 파이썬 설치를 안내하고 멈춘다 |
 | 윈도우에서 `python3` 이 스토어를 열거나 아무것도 안 나옴 | `python` 또는 `py -3` 으로 바꾼다 |
-| `init.py` 가 권한 오류 | 쓸 수 있는 다른 폴더를 사용자에게 묻는다 |
+| `setup.py` 가 권한 오류 | 쓸 수 있는 다른 폴더를 사용자에게 묻는다 |
 | `git push` 인증 실패 | `gh auth status` 와 `gh auth setup-git` 을 확인한다. 안 되면 사람에게 로그인을 안내한다. 토큰을 명령에 적지 않는다 |
 | 윈도우에서 백업 훅이 안 돎 | Git for Windows 의 `sh` 가 필요하다. 수동 push 로 안내한다 |
 

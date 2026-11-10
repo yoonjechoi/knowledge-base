@@ -1,7 +1,7 @@
-"""지식베이스 처음 만들기 — 빈 폴더에 raw · wiki 두 층, 규칙(rules.md), 규칙의 시작 폴더들, 길잡이 세 파일(index · log · inbox)을 만든다. 이미 있는 파일은 건드리지 않는다.
+"""setup — 설치 뒤 처음 한 번, 지식베이스를 만든다. 빈 폴더에 raw · wiki 두 층, 규칙(rules.md), 규칙의 시작 폴더들, 길잡이 세 파일(index · log · inbox)을 만든다. 이미 있는 파일은 건드리지 않는다.
 
-  python3 init.py              # 내 설정의 kb 위치(기본 ~/knowledge-base)에
-  python3 init.py <폴더>       # 다른 곳에 — 내 설정의 kb 도 그 폴더로 바꾼다
+  python3 setup.py             # 내 설정의 kb 위치(기본 ~/knowledge-base)에
+  python3 setup.py <폴더>      # 다른 곳에 — 내 설정의 kb 도 그 폴더로 바꾼다
 
 git 이 있으면 저장소로 시작하고 첫 커밋을 한다. 없으면 건너뛴다(기록은 log.md 에 남는다).
 """
@@ -49,7 +49,7 @@ def main():
     if write_new(kb / "wiki/index.md", index):
         made.append("wiki/index.md")
     log = "# 지식베이스 기록\n\n한 줄 머리: `## [YYYY-MM-DD] ingest|query|lint | 내용` — 맨 아래에 덧붙이기만 한다.\n\n" + \
-        f"## [{today}] init | 지식베이스 만듦 (카파시 LLM Wiki 방식, raw · wiki 두 층 + rules.md)\n"
+        f"## [{today}] setup | 지식베이스 만듦 (카파시 LLM Wiki 방식, raw · wiki 두 층 + rules.md)\n"
     if write_new(kb / "wiki/log.md", log):
         made.append("wiki/log.md")
     if write_new(kb / "wiki/inbox.md", I.HEAD):
@@ -66,7 +66,7 @@ def main():
         run = lambda *a: subprocess.run([git, "-C", str(kb), *a], capture_output=True, text=True, encoding="utf-8", errors="replace")
         run("init", "-q")
         run("add", "--", "rules.md", "wiki/index.md", "wiki/log.md", "wiki/inbox.md", ".gitignore")
-        r = run("-c", "user.name=kb", "-c", "user.email=kb@localhost", "commit", "-qm", "init: 지식베이스 만듦")
+        r = run("-c", "user.name=kb", "-c", "user.email=kb@localhost", "commit", "-qm", "setup: 지식베이스 만듦")
         gitmsg = "git 저장소로 시작하고 첫 기록을 남김" if r.returncode == 0 else "git 저장소는 만들었지만 첫 기록은 못 남김: " + r.stderr.strip()[:120]
 
     print("지식베이스:", kb)
