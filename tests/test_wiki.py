@@ -130,6 +130,40 @@ class Commit(Base):
         self.assertNotEqual(self.run_wiki("commit", "-m", "x", "raw/없음.md").returncode, 0)
 
 
+class Identity(Base):
+    def git(self, *a, home_cfg=None):
+        env = dict(os.environ, GIT_CONFIG_GLOBAL=str(home_cfg or self.root / "nogit"), GIT_CONFIG_NOSYSTEM="1")
+        return subprocess.run(["git", "-C", str(self.kb), *a], env=env, capture_output=True, text=True, encoding="utf-8").stdout.strip()
+
+    @unittest.skipUnless(shutil.which("git"), "git 없음")
+    def test_no_identity_sets_local_only(self):
+        r = self.run_wiki("setup")
+        self.assertIn("이 지식베이스 안에만", r.stdout)
+        self.assertEqual(self.git("config", "--local", "user.name"), "knowledge-base")
+        self.assertEqual(self.git("config", "--local", "user.email"), "kb@localhost")
+        self.assertFalse((self.root / "nogit").exists())   # 전역 설정 파일은 만들지 않았다
+        self.assertEqual(self.git("log", "--format=%an"), "knowledge-base")
+
+    @unittest.skipUnless(shutil.which("git"), "git 없음")
+    def test_existing_identity_untouched(self):
+        g = self.root / "gitconfig"
+        g.write_text("[user]\n\tname = 김수강\n\temail = s@example.com\n", encoding="utf-8")
+        env = dict(os.environ, HOME=str(self.home), USERPROFILE=str(self.home), GIT_CONFIG_GLOBAL=str(g), GIT_CONFIG_NOSYSTEM="1")
+        r = subprocess.run([sys.executable, str(WIKI), "setup"], env=env, capture_output=True, text=True, encoding="utf-8")
+        self.assertNotIn("이 지식베이스 안에만", r.stdout)
+        self.assertEqual(self.git("config", "--local", "user.name", home_cfg=g), "")
+        self.assertEqual(self.git("log", "--format=%an", home_cfg=g), "김수강")
+
+    @unittest.skipUnless(shutil.which("git"), "git 없음")
+    def test_old_repo_without_identity_filled_on_commit(self):
+        self.run_wiki("setup")
+        self.git("config", "--local", "--unset", "user.name"); self.git("config", "--local", "--unset", "user.email")
+        (self.kb / "raw/a.md").write_text("가", encoding="utf-8")
+        r = self.run_wiki("commit", "-m", "ingest: 가", "raw/a.md")
+        self.assertIn("커밋", r.stdout)
+        self.assertEqual(self.git("config", "--local", "user.name"), "knowledge-base")
+
+
 class Docs(unittest.TestCase):
     def test_skills_and_agent(self):
         for s in ("setup", "ingest", "query", "lint"):
