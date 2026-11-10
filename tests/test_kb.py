@@ -476,10 +476,11 @@ class Commit(Base):
 
     def test_deletion_and_odd_names(self):
         self.init()
-        self.write("raw/이름[1]*.md")
-        self.assertEqual(self.commit("-m", "더함", "raw/이름[1]*.md").returncode, 0)
-        (self.kb / "raw/이름[1]*.md").unlink()
-        r = self.commit("-m", "지움", "raw/이름[1]*.md")
+        odd = "raw/이름[1].md" if os.name == "nt" else "raw/이름[1]*.md"  # 윈도우는 * 를 파일 이름에 못 씀
+        self.write(odd)
+        self.assertEqual(self.commit("-m", "더함", odd).returncode, 0)
+        (self.kb / odd).unlink()
+        r = self.commit("-m", "지움", odd)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self.git("ls-files", "raw"), "")
 
@@ -494,6 +495,7 @@ class Commit(Base):
         self.assertEqual(self.git("status", "--short"), "")
         self.assertEqual(self.commit("-m", "x", "없는/파일.md").returncode, 1)
 
+    @unittest.skipIf(os.name == "nt", "윈도우는 chmod 로 폴더를 읽기 전용으로 못 만듦")
     def test_unwritable_folder_stops_instead_of_waiting_forever(self):
         code = ("import importlib.util, pathlib, sys\n"
                 f"s = importlib.util.spec_from_file_location('c', {str(SCRIPTS / 'commit.py')!r})\n"

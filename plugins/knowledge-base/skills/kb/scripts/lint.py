@@ -33,6 +33,10 @@ def visible(p, top=W):
     return not any(x.startswith(".") for x in p.relative_to(top).parts)
 
 
+def rel(p):
+    return p.relative_to(KB).as_posix()
+
+
 def nfc(s):
     return unicodedata.normalize("NFC", s)
 
@@ -115,14 +119,14 @@ found = []
 for name, ts in links.items():
     for t in ts:
         if t and t not in notes and not (KB / t).exists():
-            found.append(("끊긴 링크", f"{notes[name].relative_to(KB)} → [[{t}]]"))
+            found.append(("끊긴 링크", f"{rel(notes[name])} → [[{t}]]"))
 for name, p in notes.items():
     if name in SPECIAL:
         continue
     _, parts = split_body(p.read_text(encoding="utf-8", errors="ignore"))
     for m in re.findall(r"\[\[([^\]|]+)\]\]", "".join(parts[::2])):
         if m.split("#")[0].strip() in notes and bare(m.split("#")[0].strip()):
-            found.append(("보일 이름 없는 링크", f"{p.relative_to(KB)} → [[{m}]]"))
+            found.append(("보일 이름 없는 링크", f"{rel(p)} → [[{m}]]"))
 incoming = {n: 0 for n in notes}
 for ts in links.values():
     for t in ts:
@@ -130,14 +134,14 @@ for ts in links.values():
             incoming[t] += 1
 for n, c in incoming.items():
     if c == 0 and n not in SPECIAL and not DATE.fullmatch(n):
-        found.append(("아무도 안 가리킴", str(notes[n].relative_to(KB))))
+        found.append(("아무도 안 가리킴", rel(notes[n])))
 by_key = {}
 for p in paths:
     if not DATE.fullmatch(p.stem):
         by_key.setdefault(key(p.stem), []).append(p)
 for ps in by_key.values():
     if len(ps) > 1:
-        found.append(("노트 이름 겹침", " · ".join(sorted(str(p.relative_to(KB)) for p in ps))))
+        found.append(("노트 이름 겹침", " · ".join(sorted(rel(p) for p in ps))))
 
 
 def indexed(n):
@@ -152,7 +156,7 @@ for n, p in notes.items():
     if len(parts) > 2:
         folders.setdefault(parts[:2], []).append(n)
     elif not indexed(n):
-        found.append(("index 에 없음", str(p.relative_to(KB))))
+        found.append(("index 에 없음", rel(p)))
 listed = {key(x.lstrip("- ").split(" — ")[0]) for x in index.splitlines() if " — " in x}
 for parts, ns in folders.items():
     mains = [n for n in ns if key(n) in listed]
@@ -165,22 +169,22 @@ for parts, ns in folders.items():
             continue
         hold = re.search(r"^split_hold:\s*(\d+)\s*(.*)$", split_body(text)[0], re.M)
         if hold and size < int(hold[1]) + GROW:
-            found.append(("나누기 보류", f"{notes[n].relative_to(KB)} ({size}줄) — {hold[2]}"))
+            found.append(("나누기 보류", f"{rel(notes[n])} ({size}줄) — {hold[2]}"))
         else:
-            found.append(("긴 대표 노트", f"{notes[n].relative_to(KB)} ({size}줄)"))
+            found.append(("긴 대표 노트", f"{rel(notes[n])} ({size}줄)"))
 for p in W.rglob("*"):
     if " " in p.name and visible(p):
-        found.append(("이름에 띄어쓰기", str(p.relative_to(KB))))
+        found.append(("이름에 띄어쓰기", rel(p)))
 for p in W.glob("*.md"):
     if p.stem not in SPECIAL:
-        found.append(("폴더 밖에 있음", str(p.relative_to(KB))))
+        found.append(("폴더 밖에 있음", rel(p)))
 heads = set(re.findall(r"^##\s+(\S+)", index, re.M))
 for cell in (p for p in W.iterdir() if p.is_dir() and visible(p)):
     if cell.name not in heads:
-        found.append(("index 에 폴더 머리 없음", str(cell.relative_to(KB))))
+        found.append(("index 에 폴더 머리 없음", rel(cell)))
     for sub in cell.iterdir():
         if sub.is_dir() and visible(sub) and not list(sub.rglob("*.md")):
-            found.append(("노트 없는 폴더", str(sub.relative_to(KB))))
+            found.append(("노트 없는 폴더", rel(sub)))
 
 # 대기 목록과 raw 맞추기
 waiting = {nfc(x["raw"]) for x in I.items(KB)}
@@ -202,9 +206,9 @@ if (KB / "raw").is_dir():
     for p in sorted((KB / "raw").rglob("*")):
         if not p.is_file() or not visible(p, KB):
             continue
-        rel = nfc(p.relative_to(KB).as_posix())
-        if rel not in waiting and nfc(p.name) not in wiki_text and nfc(p.stem) not in wiki_text:
-            found.append(("대기에도 노트에도 없는 raw", rel))
+        rp = nfc(rel(p))
+        if rp not in waiting and nfc(p.name) not in wiki_text and nfc(p.stem) not in wiki_text:
+            found.append(("대기에도 노트에도 없는 raw", rp))
 
 print(f"노트 {len(notes) - len(SPECIAL & set(notes))}개 · 대기 {len(waiting)}개 · 찾은 것 {len(found)}개 · 규칙 {'내 rules.md' if S.rules_path(KB) != S.DEFAULT_RULES else '기본'}")
 for k, v in found:
