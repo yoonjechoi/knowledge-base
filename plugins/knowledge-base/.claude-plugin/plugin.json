@@ -1,6 +1,6 @@
 {
   "name": "knowledge-base",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "카파시 LLM Wiki gist 그대로의 개인 지식베이스. raw(원자료) · wiki(LLM 이 쓰는 페이지) · schema(CLAUDE.md) 세 층, 동작은 ingest · query · lint, 처음 한 번 setup. 옛 입구 kb 는 다른 플러그인용.",
   "author": {
     "name": "yoonjechoi"

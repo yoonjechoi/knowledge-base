@@ -12,3 +12,4 @@
 | 2026-11-11 | 대화 결론도 raw 에 결론으로 저장하고 노트 쓰기가 synthesis/ 에 넣음(옛 「결론 넣기」 없앰) | skills/kb, rules.md, inbox.py --conclusion | 저장소 주인 요청 — 결론도 raw 를 거쳐 한 길로 |
 | 2026-11-11 | ingester 에이전트의 모델을 정하지 않음(쓰는 사람의 기본 설정 모델로 돎), 부를 때도 model 을 넘기지 않음 | agents/ingester, skills/kb | 저장소 주인 요청 — 수강생은 sonnet 으로 써야 사용량이 덜 듦 |
 | 2026-11-11 | 1.0.0 — llm-wiki-plugin 내용으로 통째로 바꿈(스킬 setup · ingest · query · lint, 에이전트 batch-ingester, 도우미 wiki.py). 옛 kb 는 얇은 입구로, 옛 구조 지식베이스는 move-old 로 옆에 보관 | 전체 | 저장소 주인 요청 — gist 그대로, 이름만 knowledge-base |
+| 2026-11-11 | 1.0.1 — query 가 「결론을 받아 저장만」 요청이면 찾기를 건너뛰고 analyses 에 바로 저장 | skills/query | 다른 플러그인이 kb 대신 query 로 결론을 저장하게 바뀜 |
